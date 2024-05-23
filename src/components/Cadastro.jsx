@@ -11,7 +11,7 @@ const Cadastro = ({ onCadastro }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch('http://localhost:7778/api/users', {
+      const response = await fetch('https://sarara-be.onrender.com/api/users', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

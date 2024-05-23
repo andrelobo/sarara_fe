@@ -1,60 +1,49 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { FaBars, FaTimes } from 'react-icons/fa';
 
-const Nav = ({ token, handleLogout }) => {
-  const navigate = useNavigate();
+const Nav = () => {
   const [isOpen, setIsOpen] = useState(false);
 
-  const handleLogoutClick = () => {
-    handleLogout();
-    navigate('/login');
-  };
-
-  const toggleMenu = () => {
+  const toggleNav = () => {
     setIsOpen(!isOpen);
   };
 
+  const closeNav = () => {
+    setIsOpen(false);
+  };
+
   return (
-    <nav className="bg-[#ffd433] p-4 shadow-md">
+    <nav className="bg-[#c69f56] p-4">
       <div className="container mx-auto flex justify-between items-center">
-        <div className="text-[#c69f56] font-bold text-2xl">Sarará Estoque</div>
-        <div className="md:hidden" onClick={toggleMenu}>
-          {isOpen ? <FaTimes className="text-white" /> : <FaBars className="text-white" />}
+        <h1 className="text-white text-2xl font-bold">Sarará Estoque Bar</h1>
+        
+        <div className="md:hidden" onClick={toggleNav}>
+      
         </div>
-        <div className={`flex-col md:flex-row md:flex md:space-x-4 ${isOpen ? 'flex' : 'hidden'} md:items-center w-full md:w-auto`}>
-          <Link to="/boas-vindas" className="text-white hover:text-[#c69f56] py-2 md:py-0">
-            Boas Vindas
-          </Link>
-          {token ? (
-            <>
-              <Link to="/beverages" className="text-white hover:text-[#c69f56] py-2 md:py-0">
-                Bebidas
-              </Link>
-              <Link to="/ingredients" className="text-white hover:text-[#c69f56] py-2 md:py-0">
-                Ingredientes
-              </Link>
-              <Link to="/cadastro-beverage" className="text-white hover:text-[#c69f56] py-2 md:py-0">
-                Cadastro de Bebidas
-              </Link>
-              <Link to="/cadastro-ingredient" className="text-white hover:text-[#c69f56] py-2 md:py-0">
-                Cadastro de Ingredientes
-              </Link>
-              <button onClick={handleLogoutClick} className="text-white hover:text-[#c69f56] py-2 md:py-0">
-                Logout
-              </button>
-            </>
-          ) : (
-            <>
-              <Link to="/login" className="text-white hover:text-[#c69f56] py-2 md:py-0">
-                Login
-              </Link>
-              <Link to="/cadastro" className="text-white hover:text-[#c69f56] py-2 md:py-0">
-                Cadastro
-              </Link>
-            </>
-          )}
-        </div>
+        <ul className={`md:flex md:items-center ${isOpen ? 'block' : 'hidden'} w-full md:w-auto`}>
+          <li className="md:ml-4">
+            <Link to="/login" onClick={closeNav} className="text-white block md:inline-block mt-4 md:mt-0">Login</Link>
+          </li>
+          <li className="md:ml-4">
+            <Link to="/cadastro" onClick={closeNav} className="text-white block md:inline-block mt-4 md:mt-0">Cadastro</Link>
+          </li>
+          <li className="md:ml-4">
+            <Link to="/boas-vindas" onClick={closeNav} className="text-white block md:inline-block mt-4 md:mt-0">Boas Vindas</Link>
+          </li>
+          <li className="md:ml-4">
+            <Link to="/beverages" onClick={closeNav} className="text-white block md:inline-block mt-4 md:mt-0">Bebidas</Link>
+          </li>
+          <li className="md:ml-4">
+            <Link to="/ingredients" onClick={closeNav} className="text-white block md:inline-block mt-4 md:mt-0">Ingredientes</Link>
+          </li>
+          <li className="md:ml-4">
+            <Link to="/cadastro-beverage" onClick={closeNav} className="text-white block md:inline-block mt-4 md:mt-0">Cadastro Bebida</Link>
+          </li>
+          <li className="md:ml-4">
+            <Link to="/cadastro-ingredient" onClick={closeNav} className="text-white block md:inline-block mt-4 md:mt-0">Cadastro Ingrediente</Link>
+          </li>
+        </ul>
       </div>
     </nav>
   );

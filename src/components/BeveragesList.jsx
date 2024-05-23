@@ -11,7 +11,7 @@ const BeveragesList = () => {
   useEffect(() => {
     const fetchBeverages = async () => {
       try {
-        const response = await fetch('http://localhost:7778/api/beverages');
+        const response = await fetch('https://sarara-be.onrender.com/api/beverages');
         if (!response.ok) {
           throw new Error('Erro ao buscar as bebidas');
         }
@@ -33,7 +33,7 @@ const BeveragesList = () => {
 
   const handleDelete = async (id) => {
     try {
-      const response = await fetch(`http://localhost:7778/api/beverages/${id}`, {
+      const response = await fetch(`https://sarara-be.onrender.com/api/beverages/${id}`, {
         method: 'DELETE'
       });
       if (!response.ok) {
@@ -47,7 +47,7 @@ const BeveragesList = () => {
 
   const handleSave = async (updatedBeverage) => {
     try {
-      const response = await fetch(`http://localhost:7778/api/beverages/${updatedBeverage._id}`, {
+      const response = await fetch(`https://sarara-be.onrender.com/api/beverages/${updatedBeverage._id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'

@@ -20,7 +20,7 @@ const CreateIngredient = () => {
     setError(null);
     setSuccess(null);
     try {
-      const response = await fetch('http://localhost:7778/api/ingredients', {
+      const response = await fetch('https://sarara-be.onrender.com/api/ingredients', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(ingredient),
@@ -90,7 +90,7 @@ const CreateIngredient = () => {
           />
         </div>
         <div className="flex items-center justify-between">
-          <button type="submit" className="bg-[#c69f56] hover:bg-[#b08947] text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+          <button type="submit" className="bg-[#56c65f] hover:bg-[#56c65f] text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
             Cadastrar
           </button>
         </div>

@@ -11,7 +11,7 @@ const IngredientsList = () => {
   useEffect(() => {
     const fetchIngredients = async () => {
       try {
-        const response = await fetch('http://localhost:7778/api/ingredients');
+        const response = await fetch('https://sarara-be.onrender.com/api/ingredients');
         if (!response.ok) {
           throw new Error('Erro ao buscar os ingredientes');
         }
@@ -33,7 +33,7 @@ const IngredientsList = () => {
 
   const handleDelete = async (id) => {
     try {
-      const response = await fetch(`http://localhost:7778/api/ingredients/${id}`, {
+      const response = await fetch(`https://sarara-be.onrender.com/api/ingredients/${id}`, {
         method: 'DELETE'
       });
       if (!response.ok) {
@@ -47,7 +47,7 @@ const IngredientsList = () => {
 
   const handleSave = async (updatedIngredient) => {
     try {
-      const response = await fetch(`http://localhost:7778/api/ingredients/${updatedIngredient._id}`, {
+      const response = await fetch(`https://sarara-be.onrender.com/api/ingredients/${updatedIngredient._id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
