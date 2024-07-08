@@ -13,18 +13,26 @@ const Login = ({ onLogin }) => {
       const response = await fetch('https://sarara-be.onrender.com/api/users/login', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ email, password }),
       });
 
       if (response.ok) {
         const data = await response.json();
-        const token = data.token;
-        onLogin(token);
-        navigate('/beverages'); // Redireciona após login bem-sucedido
+        console.log('Response data:', data); // Log para depuração
+        const token = data.accessToken; // Use 'accessToken' em vez de 'token'
+        if (token) {
+          localStorage.setItem('authToken', token); // Salva o token no localStorage
+          onLogin(token);
+          navigate('/beverages'); // Redireciona após login bem-sucedido
+        } else {
+          setError('Erro ao fazer login. Token não recebido.');
+        }
+      } else if (response.status === 401) {
+        setError('Credenciais incorretas. Por favor, verifique seu email e senha.');
       } else {
-        setError('Erro ao fazer login. Por favor, verifique suas credenciais.');
+        setError('Erro ao fazer login. Por favor, tente novamente.');
       }
     } catch (error) {
       console.error('Erro de rede:', error);

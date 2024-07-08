@@ -3,7 +3,7 @@ import React from 'react';
 const IngredientCard = ({ ingredient, onEdit, onDelete }) => {
   return (
     <div className="bg-white shadow-lg rounded-lg overflow-hidden transform hover:scale-105 transition-transform duration-200">
-      <div className="bg-[#ffd433] p-6">
+      <div className="bg-[#15508c] p-6">
         <h2 className="text-2xl font-semibold text-[#c69f56] mb-2">{ingredient.name}</h2>
         <p className="text-gray-700 mb-1"><strong>Categoria:</strong> {ingredient.category}</p>
         <p className="text-gray-700 mb-1"><strong>Quantidade:</strong> {ingredient.quantity}</p>
