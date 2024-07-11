@@ -1,8 +1,13 @@
 import { useEffect, useState } from 'react';
+import BeverageCard from './BeverageCard';
+import EditBeverageCard from './EditBeverageCard';
+import BeverageHistory from './BeverageHistory';
 
 const BeveragesList = () => {
   const [beverages, setBeverages] = useState([]);
   const [error, setError] = useState('');
+  const [editingBeverage, setEditingBeverage] = useState(null);
+  const [viewingHistory, setViewingHistory] = useState(null);
 
   useEffect(() => {
     const fetchBeverages = async () => {
@@ -33,18 +38,95 @@ const BeveragesList = () => {
     fetchBeverages();
   }, []);
 
+  const handleEditBeverage = (beverage) => {
+    setEditingBeverage(beverage);
+  };
+
+  const handleDeleteBeverage = async (beverageId) => {
+    const token = localStorage.getItem('authToken');
+    try {
+      const response = await fetch(`https://sarara-be.onrender.com/api/beverages/${beverageId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        setBeverages(beverages.filter(beverage => beverage._id !== beverageId));
+      } else {
+        setError('Erro ao deletar a bebida. Por favor, tente novamente.');
+      }
+    } catch (error) {
+      console.error('Erro de rede:', error);
+      setError('Erro de rede. Por favor, tente novamente mais tarde.');
+    }
+  };
+
+  const handleSaveBeverage = async (updatedBeverage) => {
+    const token = localStorage.getItem('authToken');
+    try {
+      const response = await fetch(`https://sarara-be.onrender.com/api/beverages/${updatedBeverage._id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(updatedBeverage),
+      });
+
+      if (response.ok) {
+        const updatedBeverages = beverages.map(beverage =>
+          beverage._id === updatedBeverage._id ? updatedBeverage : beverage
+        );
+        setBeverages(updatedBeverages);
+        setEditingBeverage(null);
+      } else {
+        setError('Erro ao salvar a bebida. Por favor, tente novamente.');
+      }
+    } catch (error) {
+      console.error('Erro de rede:', error);
+      setError('Erro de rede. Por favor, tente novamente mais tarde.');
+    }
+  };
+
+  const handleViewHistory = (beverage) => {
+    console.log('Setting viewingHistory to:', beverage._id); // Log the beverage ID
+    setViewingHistory(beverage);
+  };
+
   if (error) {
     return <div>{error}</div>;
   }
 
   return (
-    <div>
-      <h1>Lista de Bebidas</h1>
-      <ul>
+    <div className="p-4">
+      <h1 className="text-2xl font-bold mb-4">Lista de Bebidas</h1>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {beverages.map(beverage => (
-          <li key={beverage.id}>{beverage.name}</li>
+          <BeverageCard
+            key={beverage._id}
+            beverage={beverage}
+            onEditBeverage={handleEditBeverage}
+            onDeleteBeverage={handleDeleteBeverage}
+            onViewHistory={handleViewHistory}
+          />
         ))}
-      </ul>
+      </div>
+      {editingBeverage && (
+        <EditBeverageCard
+          beverage={editingBeverage}
+          onSave={handleSaveBeverage}
+          onCancel={() => setEditingBeverage(null)}
+        />
+      )}
+      {viewingHistory && (
+        <BeverageHistory
+          beverage={viewingHistory}
+          onClose={() => setViewingHistory(null)}
+        />
+      )}
     </div>
   );
 };
