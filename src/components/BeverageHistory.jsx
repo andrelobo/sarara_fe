@@ -59,7 +59,7 @@ const BeverageHistory = ({ beverage, onClose }) => {
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-gray-800 bg-opacity-50">
       <div className="bg-white p-8 rounded-lg w-full max-w-2xl">
-        <h2 className="text-2xl font-bold mb-4">Histórico da Bebida</h2>
+        <h2 className="text-2xl font-bold mb-4">Histórico da Bebida: <span className="text-blue-500">{beverage.name}</span></h2>
         <button onClick={onClose} className="mb-4 px-4 py-2 bg-red-600 text-white rounded-lg">
           Fechar
         </button>

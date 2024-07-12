@@ -25,13 +25,23 @@ const Nav = () => {
   return (
     <nav className="bg-[#15508c] p-4">
       <div className="container mx-auto flex justify-between items-center">
-        <Link to="/" onClick={closeNav}>
-          <img src={sararaLogo} alt="Sarará Estoque Bar" width={200} /> {/* Substituindo o texto pelo logo */}
+        <Link to="/" onClick={closeNav} className="flex items-center ml-2">
+          <img src={sararaLogo} alt="Sarará Estoque Bar" width={150} />
+         
+          <h6 className="mt-2 ml-4 text-yellow-500 font-bold text-m">Bar Chef</h6>
         </Link>
 
         {!isOpen && (
           <div className="md:hidden" onClick={toggleNav}>
             <FaBars className="text-yellow-300" size={24} />
+          </div>
+        )}
+
+        {isOpen && (
+          <div className="md:hidden absolute top-0 right-0 p-2" onClick={closeNav}>
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-yellow-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
           </div>
         )}
 
@@ -75,6 +85,7 @@ const Nav = () => {
         </ul>
       </div>
     </nav>
+    
   );
 };
 

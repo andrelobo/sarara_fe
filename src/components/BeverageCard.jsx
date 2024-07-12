@@ -8,18 +8,18 @@ const BeverageCard = ({ beverage, onEditBeverage, onDeleteBeverage, onViewHistor
   const { name, category, quantity, unit } = beverage;
 
   return (
-    <div className="bg-white shadow-lg rounded-lg overflow-hidden transform hover:scale-105 transition-transform duration-200">
+    <div className="bg-blue shadow-lg rounded-lg overflow-hidden transform hover:scale-105 transition-transform duration-200">
       <div className="bg-[#f8b431] p-6">
-        <h2 className="text-2xl font-semibold text-[#ffffff] mb-2">{name}</h2>
-        <p className="text-white -700 mb-1">
+        <h2 className="text-2xl font-semibold text-[#1f26e1] mb-2">{name}</h2>
+        <p className="text-blue -700 mb-1">
           <span className="font-bold">Categoria:</span> {category}
         </p>
 
 
-        <p className="text-white -700 mb-1">
+        <p className="text-blue -700 mb-1">
           <span className="font-bold">Quantidade:</span> {quantity}
         </p>
-        <p className="text-white -700 mb-1">
+        <p className="text-blue -700 mb-1">
           <span className="font-bold">Unidade de medida:</span> {unit}
         </p>
         <div className="mt-4 flex justify-between">
