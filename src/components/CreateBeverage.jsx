@@ -22,7 +22,7 @@ const CreateBeverage = () => {
         unit,
         date: date.toISOString().split('T')[0], // Formata a data para YYYY-MM-DD
       };
-      await axios.post('https://sarara-be.onrender.com/api/beverages', newBeverage);
+      await axios.post('http://sararachefbar.eba-fttqyxx2.sa-east-1.elasticbeanstalk.com/api/beverages', newBeverage);
       navigate('/beverages');
     } catch (error) {
       console.error('Erro ao criar bebida:', error);

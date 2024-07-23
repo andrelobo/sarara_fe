@@ -14,7 +14,7 @@ const BeveragesList = () => {
       const token = localStorage.getItem('authToken'); // Obtenha o token do localStorage
 
       try {
-        const response = await fetch('https://sarara-be.onrender.com/api/beverages', {
+        const response = await fetch('http://sararachefbar.eba-fttqyxx2.sa-east-1.elasticbeanstalk.com/api/beverages', {
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`,
@@ -45,7 +45,7 @@ const BeveragesList = () => {
   const handleDeleteBeverage = async (beverageId) => {
     const token = localStorage.getItem('authToken');
     try {
-      const response = await fetch(`https://sarara-be.onrender.com/api/beverages/${beverageId}`, {
+      const response = await fetch(`http://sararachefbar.eba-fttqyxx2.sa-east-1.elasticbeanstalk.com/api/beverages/${beverageId}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
@@ -67,7 +67,7 @@ const BeveragesList = () => {
   const handleSaveBeverage = async (updatedBeverage) => {
     const token = localStorage.getItem('authToken');
     try {
-      const response = await fetch(`https://sarara-be.onrender.com/api/beverages/${updatedBeverage._id}`, {
+      const response = await fetch(`http://sararachefbar.eba-fttqyxx2.sa-east-1.elasticbeanstalk.com/api/beverages/${updatedBeverage._id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

@@ -15,7 +15,7 @@ const BeverageHistory = ({ beverage, onClose }) => {
     console.log("Fetching history with dates:", startDate, endDate); // Log dates
 
     try {
-      const response = await fetch(`https://sarara-be.onrender.com/api/beverages/${beverage._id}/history`, {
+      const response = await fetch(`http://sararachefbar.eba-fttqyxx2.sa-east-1.elasticbeanstalk.com/api/beverages/${beverage._id}/history`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -20,7 +20,7 @@ const CreateIngredient = () => {
     setError(null);
     setSuccess(null);
     try {
-      const response = await fetch('https://sarara-be.onrender.com/api/ingredients', {
+      const response = await fetch('http://sararachefbar.eba-fttqyxx2.sa-east-1.elasticbeanstalk.com/api/ingredients', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(ingredient),

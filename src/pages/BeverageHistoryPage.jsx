@@ -8,7 +8,7 @@ const BeverageHistoryPage = () => {
     // Supondo que você tenha uma função para buscar o histórico da bebida
     const fetchHistory = async () => {
       try {
-        const response = await fetch('https://sarara-be.onrender.com/api/beverages/663d5e59a6d7c05e36a63171/history?startDate=2024-01-01&endDate=2024-07-31');
+        const response = await fetch('http://sararachefbar.eba-fttqyxx2.sa-east-1.elasticbeanstalk.com/api/beverages/663d5e59a6d7c05e36a63171/history?startDate=2024-01-01&endDate=2024-07-31');
         const data = await response.json();
         setHistory(data);
       } catch (error) {

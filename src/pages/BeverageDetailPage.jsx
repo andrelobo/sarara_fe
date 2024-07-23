@@ -13,7 +13,7 @@ const BeverageDetailPage = () => {
   useEffect(() => {
     const fetchBeverage = async () => {
       try {
-        const response = await axios.get(`https://sarara-be.onrender.com/api/beverages/${id}`);
+        const response = await axios.get(`http://sararachefbar.eba-fttqyxx2.sa-east-1.elasticbeanstalk.com/api/beverages/${id}`);
         const data = response.data;
         setBeverage(data);
       } catch (error) {
@@ -26,7 +26,7 @@ const BeverageDetailPage = () => {
 
   const fetchBeverageHistory = async () => {
     try {
-      const response = await axios.get(`https://sarara-be.onrender.com/api/beverages/${id}/history`, {
+      const response = await axios.get(`http://sararachefbar.eba-fttqyxx2.sa-east-1.elasticbeanstalk.com/api/beverages/${id}/history`, {
         params: {
           startDate,
           endDate,
