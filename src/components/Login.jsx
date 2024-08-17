@@ -10,7 +10,7 @@ const Login = ({ onLogin }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch('http://sararachefbar.eba-fttqyxx2.sa-east-1.elasticbeanstalk.com/api/users/login', {
+      const response = await fetch('https://sarara-be.vercel.app/api/users/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -43,7 +43,7 @@ const Login = ({ onLogin }) => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="max-w-md w-full p-8 bg-white shadow-md rounded-lg">
-        <h2 className="text-center text-3xl font-bold text-yellow-600">Login</h2>
+        <h2 className="text-center text-3xl  text-yellow-600">Login</h2>
         {error && <p className="mt-2 text-center text-sm text-red-600">{error}</p>}
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div>

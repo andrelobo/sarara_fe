@@ -20,7 +20,7 @@ const CreateIngredient = () => {
     setError(null);
     setSuccess(null);
     try {
-      const response = await fetch('http://sararachefbar.eba-fttqyxx2.sa-east-1.elasticbeanstalk.com/api/ingredients', {
+      const response = await fetch('https://sarara-be.vercel.app/api/ingredients', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(ingredient),
@@ -37,12 +37,12 @@ const CreateIngredient = () => {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-[#f5f5f5] py-10">
-      <h1 className="text-4xl font-bold text-[#c69f56] mb-10">Cadastrar Ingrediente</h1>
+      <h1 className="text-4xl  text-[#c69f56] mb-10">Cadastrar Ingrediente</h1>
       <form className="bg-white shadow-lg rounded-lg p-8 w-full max-w-lg" onSubmit={handleSubmit}>
         {error && <p className="text-red-600">{error}</p>}
         {success && <p className="text-green-600">{success}</p>}
         <div className="mb-4">
-          <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="name">Nome</label>
+          <label className="block text-gray-700 text-sm  mb-2" htmlFor="name">Nome</label>
           <input
             type="text"
             id="name"
@@ -54,7 +54,7 @@ const CreateIngredient = () => {
           />
         </div>
         <div className="mb-4">
-          <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="category">Categoria</label>
+          <label className="block text-gray-700 text-sm  mb-2" htmlFor="category">Categoria</label>
           <input
             type="text"
             id="category"
@@ -66,7 +66,7 @@ const CreateIngredient = () => {
           />
         </div>
         <div className="mb-4">
-          <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="quantity">Quantidade</label>
+          <label className="block text-gray-700 text-sm  mb-2" htmlFor="quantity">Quantidade</label>
           <input
             type="number"
             id="quantity"
@@ -78,7 +78,7 @@ const CreateIngredient = () => {
           />
         </div>
         <div className="mb-4">
-          <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="unit">Unidade</label>
+          <label className="block text-gray-700 text-sm  mb-2" htmlFor="unit">Unidade</label>
           <input
             type="text"
             id="unit"
@@ -90,7 +90,7 @@ const CreateIngredient = () => {
           />
         </div>
         <div className="flex items-center justify-between">
-          <button type="submit" className="bg-[#56c65f] hover:bg-[#56c65f] text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+          <button type="submit" className="bg-[#56c65f] hover:bg-[#56c65f] text-white  py-2 px-4 rounded focus:outline-none focus:shadow-outline">
             Cadastrar
           </button>
         </div>

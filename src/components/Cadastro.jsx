@@ -11,7 +11,7 @@ const Cadastro = ({ onCadastro }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch('http://sararachefbar.eba-fttqyxx2.sa-east-1.elasticbeanstalk.com/api/users', {
+      const response = await fetch('https://sarara-be.vercel.app/api/users', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -36,7 +36,7 @@ const Cadastro = ({ onCadastro }) => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="max-w-md w-full p-8 bg-white shadow-md rounded-lg">
-        <h2 className="text-center text-3xl font-bold text-yellow-600">Cadastro</h2>
+        <h2 className="text-center text-3xl  text-yellow-600">Cadastro</h2>
         {error && <p className="mt-2 text-center text-sm text-red-600">{error}</p>}
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div>

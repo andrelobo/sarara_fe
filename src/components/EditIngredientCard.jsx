@@ -16,7 +16,7 @@ const EditIngredientCard = ({ ingredient, onSave, onCancel }) => {
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-gray-800 bg-opacity-50">
       <div className="bg-white p-8 rounded-lg">
-        <h2 className="text-2xl font-bold mb-4">Editar Ingrediente</h2>
+        <h2 className="text-2xl  mb-4">Editar Ingrediente</h2>
         <form onSubmit={handleSubmit}>
           <div className="mb-4">
             <label className="block text-gray-700">Nome</label>

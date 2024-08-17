@@ -15,7 +15,7 @@ const BeverageHistory = ({ beverage, onClose }) => {
     console.log("Fetching history with dates:", startDate, endDate); // Log dates
 
     try {
-      const response = await fetch(`http://sararachefbar.eba-fttqyxx2.sa-east-1.elasticbeanstalk.com/api/beverages/${beverage._id}/history`, {
+      const response = await fetch(`https://sarara-be.vercel.app/api/beverages/${beverage._id}/history`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -59,7 +59,7 @@ const BeverageHistory = ({ beverage, onClose }) => {
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-gray-800 bg-opacity-50">
       <div className="bg-white p-8 rounded-lg w-full max-w-2xl">
-        <h2 className="text-2xl font-bold mb-4">Histórico da Bebida: <span className="text-blue-500">{beverage.name}</span></h2>
+        <h2 className="text-2xl  mb-4">Histórico da Bebida: <span className="text-blue-500">{beverage.name}</span></h2>
         <button onClick={onClose} className="mb-4 px-4 py-2 bg-red-600 text-white rounded-lg">
           Fechar
         </button>
@@ -96,13 +96,13 @@ const BeverageHistory = ({ beverage, onClose }) => {
               <li key={entry._id} className="mb-2">
                 <div className="bg-gray-100 p-4 rounded-lg">
                   <p>
-                    <span className="font-bold">Data:</span> {new Date(entry.date).toLocaleDateString()}
+                    <span className="">Data:</span> {new Date(entry.date).toLocaleDateString()}
                   </p>
                   <p>
-                    <span className="font-bold">Mudança:</span> {entry.change}
+                    <span className="">Mudança:</span> {entry.change}
                   </p>
                   <p>
-                    <span className="font-bold">Quantidade:</span> {entry.quantity}
+                    <span className="">Quantidade:</span> {entry.quantity}
                   </p>
                 </div>
               </li>

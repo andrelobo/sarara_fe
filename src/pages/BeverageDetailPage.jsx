@@ -13,7 +13,7 @@ const BeverageDetailPage = () => {
   useEffect(() => {
     const fetchBeverage = async () => {
       try {
-        const response = await axios.get(`http://sararachefbar.eba-fttqyxx2.sa-east-1.elasticbeanstalk.com/api/beverages/${id}`);
+        const response = await axios.get(`https://sarara-be.vercel.app/api/beverages/${id}`);
         const data = response.data;
         setBeverage(data);
       } catch (error) {
@@ -26,7 +26,7 @@ const BeverageDetailPage = () => {
 
   const fetchBeverageHistory = async () => {
     try {
-      const response = await axios.get(`http://sararachefbar.eba-fttqyxx2.sa-east-1.elasticbeanstalk.com/api/beverages/${id}/history`, {
+      const response = await axios.get(`https://sarara-be.vercel.app/api/beverages/${id}/history`, {
         params: {
           startDate,
           endDate,
@@ -50,7 +50,7 @@ const BeverageDetailPage = () => {
 
   return (
     <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">{beverage.name}</h1>
+      <h1 className="text-2xl  mb-4">{beverage.name}</h1>
       <p>Categoria: {beverage.category}</p>
       <p>Quantidade: {beverage.quantity}</p>
       <p>Unidade: {beverage.unit}</p>
@@ -74,7 +74,7 @@ const BeverageDetailPage = () => {
       </div>
       {beverage.history && (
         <div>
-          <h2 className="text-xl font-bold mt-4">Histórico</h2>
+          <h2 className="text-xl  mt-4">Histórico</h2>
           {beverage.history.map(entry => (
             <div key={entry._id} className="bg-gray-100 p-2 rounded mb-2">
               <p><strong>Data:</strong> {new Date(entry.date).toLocaleDateString()}</p>

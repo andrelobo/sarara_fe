@@ -14,7 +14,7 @@ const BeveragesList = () => {
       const token = localStorage.getItem('authToken'); // Obtenha o token do localStorage
 
       try {
-        const response = await fetch('http://sararachefbar.eba-fttqyxx2.sa-east-1.elasticbeanstalk.com/api/beverages', {
+        const response = await fetch('https://sarara-be.vercel.app/api/beverages', {
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`,
@@ -45,7 +45,7 @@ const BeveragesList = () => {
   const handleDeleteBeverage = async (beverageId) => {
     const token = localStorage.getItem('authToken');
     try {
-      const response = await fetch(`http://sararachefbar.eba-fttqyxx2.sa-east-1.elasticbeanstalk.com/api/beverages/${beverageId}`, {
+      const response = await fetch(`https://sarara-be.vercel.app/api/beverages/${beverageId}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
@@ -67,7 +67,7 @@ const BeveragesList = () => {
   const handleSaveBeverage = async (updatedBeverage) => {
     const token = localStorage.getItem('authToken');
     try {
-      const response = await fetch(`http://sararachefbar.eba-fttqyxx2.sa-east-1.elasticbeanstalk.com/api/beverages/${updatedBeverage._id}`, {
+      const response = await fetch(`https://sarara-be.vercel.app/api/beverages/${updatedBeverage._id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -102,7 +102,7 @@ const BeveragesList = () => {
 
   return (
     <div className="p-4">
-<h1 className="text-2xl font-bold mb-4 text-center">Lista de Bebidas</h1>
+<h1 className="text-2xl  mb-4 text-center">Lista de Bebidas</h1>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {beverages.map(beverage => (
           <BeverageCard

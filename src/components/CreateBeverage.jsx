@@ -22,7 +22,7 @@ const CreateBeverage = () => {
         unit,
         date: date.toISOString().split('T')[0], // Formata a data para YYYY-MM-DD
       };
-      await axios.post('http://sararachefbar.eba-fttqyxx2.sa-east-1.elasticbeanstalk.com/api/beverages', newBeverage);
+      await axios.post('https://sarara-be.vercel.app/api/beverages', newBeverage);
       navigate('/beverages');
     } catch (error) {
       console.error('Erro ao criar bebida:', error);
@@ -31,7 +31,7 @@ const CreateBeverage = () => {
 
   return (
     <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">Cadastrar Bebida</h1>
+      <h1 className="text-2xl  mb-4">Cadastrar Bebida</h1>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-gray-700">Nome</label>

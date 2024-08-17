@@ -11,7 +11,7 @@ const IngredientsList = () => {
   useEffect(() => {
     const fetchIngredients = async () => {
       try {
-        const response = await fetch('http://sararachefbar.eba-fttqyxx2.sa-east-1.elasticbeanstalk.com/api/ingredients');
+        const response = await fetch('https://sarara-be.vercel.app/api/ingredients');
         if (!response.ok) {
           throw new Error('Erro ao buscar os ingredientes');
         }
@@ -33,7 +33,7 @@ const IngredientsList = () => {
 
   const handleDelete = async (id) => {
     try {
-      const response = await fetch(`http://sararachefbar.eba-fttqyxx2.sa-east-1.elasticbeanstalk.com/api/ingredients/${id}`, {
+      const response = await fetch(`https://sarara-be.vercel.app/api/ingredients/${id}`, {
         method: 'DELETE'
       });
       if (!response.ok) {
@@ -47,7 +47,7 @@ const IngredientsList = () => {
 
   const handleSave = async (updatedIngredient) => {
     try {
-      const response = await fetch(`http://sararachefbar.eba-fttqyxx2.sa-east-1.elasticbeanstalk.com/api/ingredients/${updatedIngredient._id}`, {
+      const response = await fetch(`https://sarara-be.vercel.app/api/ingredients/${updatedIngredient._id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -75,7 +75,7 @@ const IngredientsList = () => {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-[#f5f5f5] py-10">
-      <h1 className="text-4xl font-bold text-[#c69f56] mb-10">Lista de Ingredientes</h1>
+      <h1 className="text-4xl  text-[#c69f56] mb-10">Lista de Ingredientes</h1>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 w-full max-w-6xl px-4">
         {ingredients.map(ingredient => (
           <IngredientCard

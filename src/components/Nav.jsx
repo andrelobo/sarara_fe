@@ -28,7 +28,7 @@ const Nav = () => {
         <Link to="/" onClick={closeNav} className="flex items-center ml-2">
           <img src={sararaLogo} alt="Sarará Estoque Bar" width={150} />
          
-          <h6 className="mt-2 ml-4 text-yellow-500 font-bold text-m">Bar Chef</h6>
+          <h6 className="mt-2 ml-4 text-yellow-500  text-m">Bar Chef</h6>
         </Link>
 
         {!isOpen && (
