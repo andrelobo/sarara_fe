@@ -14,7 +14,7 @@ const BeverageHistoryChart = () => {
     // Fetching the list of beverages
     const fetchBeverages = async () => {
       try {
-        const response = await axios.get('http://localhost:7778/api/beverages'); // Ajuste o endpoint conforme necessário
+        const response = await axios.get('https://sarara-be.vercel.app/api/beverages'); // Ajuste o endpoint conforme necessário
         setBeverages(response.data);
       } catch (error) {
         console.error('Error fetching beverages:', error);
@@ -27,7 +27,7 @@ const BeverageHistoryChart = () => {
 
   const fetchData = async () => {
     try {
-      const response = await axios.post(`http://localhost:7778/api/beverages/${selectedBeverage}/history`, {
+      const response = await axios.post(`https://sarara-be.vercel.app/api/beverages/${selectedBeverage}/history`, {
         startDate,
         endDate,
       });
