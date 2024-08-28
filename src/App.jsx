@@ -8,15 +8,14 @@ import IngredientsList from './components/IngredientsList';
 import CadastroBeverage from './components/CreateBeverage';
 import CadastroIngredient from './components/CreateIngredient';
 import BeverageDetailPage from './pages/BeverageDetailPage';
-import BeverageHistory from './components/BeverageHistory';
 import Nav from './components/Nav';
+import BeverageHistoryPage from './pages/BeverageHistoryPage';
 
 const App = () => {
   const [token, setToken] = useState(null);
 
   const handleLogin = (token) => {
     setToken(token);
-    // Você também pode armazenar o token no localStorage se quiser persistir após um refresh
     localStorage.setItem('authToken', token);
   };
 
@@ -32,8 +31,7 @@ const App = () => {
         <Route path="/cadastro-beverage" element={<CadastroBeverage />} />
         <Route path="/cadastro-ingredient" element={<CadastroIngredient />} />
         <Route path="/beverages/:id" element={<BeverageDetailPage />} />
-        <Route path="/beverages/:id/history" element={<BeverageHistory />} />
-        {/* Adicione outras rotas conforme necessário */}
+        <Route path="/beverages/history" element={<BeverageHistoryPage />} />
       </Routes>
     </Router>
   );

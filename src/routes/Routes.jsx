@@ -14,8 +14,9 @@ const RoutesComponent = () => {
       <Route path="/cadastro" element={<CadastroComponent onCadastro={handleCadastro}/>} />
       <Route path="/login" element={<LoginComponent  onLogin={(token) => token}/>} />
         <Route path="/beverages" element={<BeveragesList onLogin={(token) => token}/>} />
-        <Route path="/beverages/:id/history" element={<BeverageHistoryPage />} />
+       
       <Route path="/ingredients" element={<IngredientsList onLogin={(token) => token}/>} />
+      <Route path="/beverages/history" component={BeverageHistoryPage} />
        
     </Routes>
   );

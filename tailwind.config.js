@@ -12,6 +12,8 @@ module.exports = {
     fontFamily: {
       sans: ['Poppins', 'sans-serif'], // Configura a fonte padrão global
     },
+
+    
     
   },
   plugins: [],
