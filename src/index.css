@@ -2,6 +2,23 @@
 @tailwind components;
 @tailwind utilities;
 
+
+:root {
+  --background: #111827; /* Azul escuro */
+  --foreground: #C0C0C0;
+  --primary: #1E90FF;
+  --primary-foreground: #FFFFFF;
+  --muted: #333333;
+  --muted-foreground: #666666;
+  --border: #444444;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+}
+
+
 @media (max-width: 640px) {
     .recharts-wrapper {
       font-size: 0.75rem; /* Font size for mobile devices */

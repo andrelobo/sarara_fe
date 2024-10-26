@@ -11,8 +11,7 @@ const BeveragesList = () => {
 
   useEffect(() => {
     const fetchBeverages = async () => {
-      const token = localStorage.getItem('authToken'); // Obtenha o token do localStorage
-
+      const token = localStorage.getItem('authToken');
       try {
         const response = await fetch('https://sarara-be.vercel.app/api/beverages', {
           headers: {
@@ -20,7 +19,6 @@ const BeveragesList = () => {
             'Authorization': `Bearer ${token}`,
           },
         });
-
         if (response.ok) {
           const data = await response.json();
           setBeverages(data);
@@ -34,7 +32,6 @@ const BeveragesList = () => {
         setError('Erro de rede. Por favor, tente novamente mais tarde.');
       }
     };
-
     fetchBeverages();
   }, []);
 
@@ -52,7 +49,6 @@ const BeveragesList = () => {
           'Authorization': `Bearer ${token}`,
         },
       });
-
       if (response.ok) {
         setBeverages(beverages.filter(beverage => beverage._id !== beverageId));
       } else {
@@ -75,7 +71,6 @@ const BeveragesList = () => {
         },
         body: JSON.stringify(updatedBeverage),
       });
-
       if (response.ok) {
         const updatedBeverages = beverages.map(beverage =>
           beverage._id === updatedBeverage._id ? updatedBeverage : beverage
@@ -92,17 +87,17 @@ const BeveragesList = () => {
   };
 
   const handleViewHistory = (beverage) => {
-    console.log('Setting viewingHistory to:', beverage._id); // Log the beverage ID
+    console.log('Setting viewingHistory to:', beverage._id);
     setViewingHistory(beverage);
   };
 
   if (error) {
-    return <div>{error}</div>;
+    return <div className="text-red-500">{error}</div>;
   }
 
   return (
     <div className="p-4">
-<h1 className="text-2xl  mb-4 text-center">Lista de Bebidas</h1>
+      <h1 className="text-3xl mb-4 text-center text-blue-500">Lista de Bebidas</h1>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {beverages.map(beverage => (
           <BeverageCard
