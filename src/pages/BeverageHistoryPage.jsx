@@ -4,7 +4,7 @@ import BeverageHistoryChart from "../components/BeverageHistoryChart";
 const BeverageHistoryPage = () => {
   return (
     <div>
-      <h1>Beverage History</h1>
+     
       <BeverageHistoryChart />
     </div>
   );

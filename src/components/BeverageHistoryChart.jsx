@@ -57,50 +57,79 @@ const BeverageHistoryChart = () => {
   };
 
   return (
-    <div>
-      <div className="mb-4">
-        <label htmlFor="beverageSelect">Escolha uma bebida:</label>
-        <select id="beverageSelect" value={selectedBeverage} onChange={handleBeverageChange} className="ml-2">
-          <option value="">Escolha uma bebida:</option>
-          {beverages.map((beverage) => (
-            <option key={beverage._id} value={beverage._id}>
-              {beverage.name}
-            </option>
-          ))}
-        </select>
-
-        <div className="mt-2">
-          <label htmlFor="startDate">Data de Início:</label>
-          <input type="date" id="startDate" value={startDate} onChange={handleStartDateChange} className="ml-2" />
+    <div className="min-h-screen flex items-center justify-center bg-[#111827] text-gray-300">
+      <div className="max-w-md w-full p-8 bg-gray-900 shadow-md rounded-lg">
+        <h2 className="text-center text-3xl text-blue-500 mb-4">Histórico de Bebidas</h2>
+        
+        <div className="mb-4 space-y-4">
+          <div>
+            <label htmlFor="beverageSelect" className="block text-gray-300">Escolha uma bebida:</label>
+            <select 
+              id="beverageSelect" 
+              value={selectedBeverage} 
+              onChange={handleBeverageChange} 
+              className="w-full px-3 py-2 border border-gray-600 placeholder-gray-500 bg-gray-700 text-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 rounded-md"
+            >
+              <option value="">Escolha uma bebida:</option>
+              {beverages.map((beverage) => (
+                <option key={beverage._id} value={beverage._id}>
+                  {beverage.name}
+                </option>
+              ))}
+            </select>
+          </div>
+  
+          <div>
+            <label htmlFor="startDate" className="block text-gray-300">Data de Início:</label>
+            <input 
+              type="date" 
+              id="startDate" 
+              value={startDate} 
+              onChange={handleStartDateChange} 
+              className="w-full px-3 py-2 border border-gray-600 placeholder-gray-500 bg-gray-700 text-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 rounded-md"
+            />
+          </div>
+  
+          <div>
+            <label htmlFor="endDate" className="block text-gray-300">Data Final:</label>
+            <input 
+              type="date" 
+              id="endDate" 
+              value={endDate} 
+              onChange={handleEndDateChange} 
+              className="w-full px-3 py-2 border border-gray-600 placeholder-gray-500 bg-gray-700 text-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 rounded-md"
+            />
+          </div>
+  
+          <button 
+            onClick={fetchData} 
+            className="w-full py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 mt-4"
+          >
+            Buscar Dados
+          </button>
         </div>
-
-        <div className="mt-2">
-          <label htmlFor="endDate">Data Final:</label>
-          <input type="date" id="endDate" value={endDate} onChange={handleEndDateChange} className="ml-2" />
-        </div>
-
-        <button onClick={fetchData} className="mt-4 px-4 py-2 bg-blue-500 text-white">Buscar Dados</button>
+  
+        {error ? (
+          <p className="text-red-500">{error}</p>
+        ) : data.length === 0 ? (
+          <p className="text-center text-gray-400 mt-4">Sem modificações nessa data</p>
+        ) : (
+          <ResponsiveContainer width="100%" height={400}>
+            <LineChart data={data}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="date" />
+              <YAxis />
+              <Tooltip />
+              <Legend />
+              <Line type="monotone" dataKey="totalChange" stroke="#8884d8" activeDot={{ r: 8 }} />
+              <Line type="monotone" dataKey="totalChange" stroke="#82ca9d" />
+            </LineChart>
+          </ResponsiveContainer>
+        )}
       </div>
-
-      {error ? (
-        <p>{error}</p>
-      ) : data.length === 0 ? (
-        <p>Sem modificações nessa data</p>
-      ) : (
-        <ResponsiveContainer width="100%" height={400}>
-          <LineChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="date" />
-            <YAxis />
-            <Tooltip />
-            <Legend />
-            <Line type="monotone" dataKey="totalChange" stroke="#8884d8" activeDot={{ r: 8 }} />
-            <Line type="monotone" dataKey="totalChange" stroke="#82ca9d" /> {/* Segunda linha para mais contraste */}
-          </LineChart>
-        </ResponsiveContainer>
-      )}
     </div>
   );
+  
 };
 
 export default BeverageHistoryChart;
