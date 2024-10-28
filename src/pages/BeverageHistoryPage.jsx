@@ -1,13 +1,11 @@
 import React from "react";
 import BeverageHistoryChart from "../components/BeverageHistoryChart";
 
-const BeverageHistoryPage = () => {
-  return (
-    <div>
-      <h1>Beverage History</h1>
-      <BeverageHistoryChart />
-    </div>
-  );
-};
+const BeverageHistoryPage = () => (
+  <div className="page-container">
+    <BeverageHistoryChart />
+  </div>
+);
 
 export default BeverageHistoryPage;
+

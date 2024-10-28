@@ -64,6 +64,10 @@ const Nav = () => {
                 <li className="my-2 md:my-0">
                   <Link to="/cadastro-beverage" onClick={closeNav} className="block md:inline-block">Cadastro Bebida</Link>
                 </li>
+                <li className="my-2 md:my-0">
+                  <Link to="/beverages/history" onClick={closeNav} className="block md:inline-block">Gráficos de bebidas</Link>
+                </li>
+
               </ul>
             )}
           </li>
