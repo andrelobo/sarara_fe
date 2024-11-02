@@ -8,12 +8,19 @@ const BeverageHistoryChart = () => {
 
   useEffect(() => {
     const fetchData = async () => {
+      const token = localStorage.getItem('authToken');
       try {
-        const response = await axios.get('http://localhost:3000/beverages/history');
+        const response = await axios.get('https://sarara-be.vercel.app/api/beverages/history', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
         const formattedData = response.data.map(item => ({
-          date: item._id.date,
+          date: item._id.date,   // Certifique-se de que esses dados estão no formato esperado
           totalChange: item.totalChange
         }));
+
         setData(formattedData);
       } catch (error) {
         console.error('Error fetching beverage history:', error);

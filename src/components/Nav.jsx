@@ -28,8 +28,7 @@ const Nav = () => {
         <Link to="/" onClick={closeNav} className="flex items-center ml-2">
           <img src={sararaLogo} alt="Sarará Estoque Bar" width={150} />
          
-          <h6 className="mt-2 ml-4 text-yellow-500  text-m">Bar Chef</h6>
-        </Link>
+          <h8 className="mt-2 ml-4 text-yellow-500 text-xs">Bar Chef</h8>        </Link>
 
         {!isOpen && (
           <div className="md:hidden" onClick={toggleNav}>
@@ -62,10 +61,10 @@ const Nav = () => {
                   <Link to="/beverages" onClick={closeNav} className="block md:inline-block">Lista de Bebidas</Link>
                 </li>
                 <li className="my-2 md:my-0">
-                  <Link to="/cadastro-beverage" onClick={closeNav} className="block md:inline-block">Cadastro Bebida</Link>
+                  <Link to="/cadastro-beverage" onClick={closeNav} className="block md:inline-block">Cadastro de Bebidas</Link>
                 </li>
                 <li className="my-2 md:my-0">
-                  <Link to="/beverages/history" onClick={closeNav} className="block md:inline-block">Gráficos de bebidas</Link>
+                  <Link to="/beverages/history" onClick={closeNav} className="block md:inline-block">Gráficos de Bebidas</Link>
                 </li>
 
               </ul>

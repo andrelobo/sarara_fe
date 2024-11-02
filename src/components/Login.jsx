@@ -17,40 +17,45 @@ const Login = ({ onLogin }) => {
         },
         body: JSON.stringify({ email, password }),
       });
-      
-      if (response.ok) {
-        const data = await response.json();
-        console.log('Response data:', data);
-        const token = data.accessToken;
-        if (token) {
-          localStorage.setItem('authToken', token);
-          onLogin(token);
+
+      if (!response.ok) {
+        if (response.status === 401) {
           Swal.fire({
-            icon: 'success',
-            title: 'Login realizado com sucesso!',
-            text: 'Bem-vindo de volta!',
-            confirmButtonText: 'Ok',
-          }).then(() => navigate('/beverages'));
+            icon: 'warning',
+            title: 'Credenciais incorretas',
+            text: 'Por favor, verifique seu email e senha.',
+          });
         } else {
           Swal.fire({
             icon: 'error',
             title: 'Erro ao fazer login',
-            text: 'Token não recebido. Por favor, tente novamente.',
+            text: 'Por favor, tente novamente.',
           });
         }
-      } else if (response.status === 401) {
-        Swal.fire({
-          icon: 'warning',
-          title: 'Credenciais incorretas',
-          text: 'Por favor, verifique seu email e senha.',
-        });
-      } else {
+        return;
+      }
+
+      const data = await response.json();
+      const { accessToken } = data;
+
+      if (!accessToken) {
         Swal.fire({
           icon: 'error',
           title: 'Erro ao fazer login',
-          text: 'Por favor, tente novamente.',
+          text: 'Token não recebido. Por favor, tente novamente.',
         });
+        return;
       }
+
+      localStorage.setItem('authToken', accessToken);
+      onLogin(accessToken);
+      Swal.fire({
+        icon: 'success',
+        title: 'Login realizado com sucesso!',
+        text: 'Bem-vindo de volta!',
+        confirmButtonText: 'Ok',
+      }).then(() => navigate('/beverages'));
+
     } catch (error) {
       console.error('Erro de rede:', error);
       Swal.fire({
