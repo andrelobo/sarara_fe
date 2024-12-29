@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { FaBars, FaTimes, FaGlassMartiniAlt, FaCarrot, FaHome, FaSignInAlt, FaUserPlus } from 'react-icons/fa';
+import { FaHome, FaGlassMartiniAlt, FaCarrot, FaSignInAlt, FaUserPlus, FaTimes, FaBars } from 'react-icons/fa';
+import logo from '../assets/sarara-logo.png';
 
 const Nav = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -22,7 +23,7 @@ const Nav = () => {
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center">
             <Link to="/" className="flex-shrink-0">
-              <img className="h-8 w-8" src="/logo.png" alt="BarChef Logo" />
+              <img className="h-8 w-32" src={logo}  alt="BarChef Logo" />
             </Link>
             <div className="hidden md:block">
               <div className="ml-10 flex items-baseline space-x-4">
@@ -60,7 +61,6 @@ const Nav = () => {
         </div>
       </div>
 
-      {/* Mobile menu, show/hide based on menu state. */}
       <div className={`md:hidden ${isOpen ? 'block' : 'hidden'}`} id="mobile-menu">
         <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
           {navItems.map((item) => (
@@ -87,4 +87,3 @@ const Nav = () => {
 };
 
 export default Nav;
-
