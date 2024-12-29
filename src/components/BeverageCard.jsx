@@ -1,30 +1,20 @@
-import React from "react";
+import React, { useCallback } from "react";
 import PropTypes from "prop-types";
 import { FaEdit, FaTrash, FaHistory } from "react-icons/fa";
 import Swal from "sweetalert2";
 import "sweetalert2/src/sweetalert2.scss";
 
-const BeverageCard = ({
-  beverage,
-  onEditBeverage,
-  onDeleteBeverage,
-  onViewHistory,
-}) => {
-  if (!beverage) {
-    return null;
-  }
-
+const BeverageCard = React.memo(({ beverage, onEditBeverage, onDeleteBeverage, onViewHistory }) => {
   const { name, category, quantity, unit } = beverage;
 
-  // Função para confirmar a exclusão com SweetAlert2
-  const handleDelete = () => {
+  const handleDelete = useCallback(() => {
     Swal.fire({
       title: "Tem certeza?",
       text: "Você não poderá desfazer essa ação!",
       icon: "warning",
       showCancelButton: true,
-      confirmButtonColor: "#d33",
-      cancelButtonColor: "#3085d6",
+      confirmButtonColor: "var(--color-error)",
+      cancelButtonColor: "var(--color-primary)",
       confirmButtonText: "Sim, deletar!",
       cancelButtonText: "Cancelar",
     }).then((result) => {
@@ -33,57 +23,63 @@ const BeverageCard = ({
         Swal.fire("Deletado!", "A bebida foi removida.", "success");
       }
     });
-  };
+  }, [beverage._id, onDeleteBeverage]);
 
   return (
-    <div className="bg-gray-800 shadow-lg rounded-lg overflow-hidden transform hover:scale-105 transition-transform duration-200">
-      <div className="bg-gray-700 p-4">
-      <h2 className="text-xl text-white-400 mb-1 text-center">{name}</h2>
-        <p className="text-gray-400 text-sm mb-1">
-          <span className="font-semibold text-blue-400">Categoria:</span>{" "}
-          {category}
-        </p>
-        <p className="text-gray-400 text-sm mb-1">
-          <span className="font-semibold text-blue-400">Quantidade:</span>{" "}
-          {quantity}
-        </p>
-        <p className="text-gray-400 text-sm mb-1">
-          <span className="font-semibold text-blue-400">
-            Unidade de medida:
-          </span>{" "}
-          {unit}
-        </p>
+    <div className="bg-background-light shadow-lg rounded-lg overflow-hidden transform hover:scale-105 transition-transform duration-200 animate-fade-in">
+      <div className="bg-primary p-4">
+        <h2 className="text-xl text-text mb-2 text-center">{name}</h2>
+        <div className="space-y-2 mb-4">
+          <p className="text-text-dark text-sm">
+            <span className="font-semibold text-secondary">Categoria:</span>{" "}
+            {category}
+          </p>
+          <p className="text-text-dark text-sm">
+            <span className="font-semibold text-secondary">Quantidade:</span>{" "}
+            {quantity} {unit}
+          </p>
+        </div>
 
-        <div className="mt-4 flex justify-around text-gray-200 space-x-2">
+        <div className="flex justify-around space-x-2">
           <button
             onClick={() => onEditBeverage(beverage)}
-            className="bg-yellow-500 hover:bg-yellow-600 text-white p-1 rounded-md text-sm transition duration-200"
+            className="bg-secondary hover:bg-secondary-light text-background px-3 py-1 rounded-md text-sm transition duration-200 flex items-center"
+            aria-label="Editar bebida"
           >
-            Editar
+            <FaEdit className="mr-1" /> Editar
           </button>
           <button
             onClick={handleDelete}
-            className="bg-red-500 hover:bg-red-600 text-white p-1 rounded-md text-sm transition duration-200"
+            className="bg-error hover:bg-error-light text-text px-3 py-1 rounded-md text-sm transition duration-200 flex items-center"
+            aria-label="Deletar bebida"
           >
-            Deletar
+            <FaTrash className="mr-1" /> Deletar
           </button>
           <button
             onClick={() => onViewHistory(beverage)}
-            className="bg-blue-500 hover:bg-blue-600 text-white p-1 rounded-md text-sm transition duration-200"
+            className="bg-primary-light hover:bg-primary text-text px-3 py-1 rounded-md text-sm transition duration-200 flex items-center"
+            aria-label="Ver histórico da bebida"
           >
-            Histórico
+            <FaHistory className="mr-1" /> Histórico
           </button>
         </div>
       </div>
     </div>
   );
-};
+});
 
 BeverageCard.propTypes = {
-  beverage: PropTypes.object.isRequired,
+  beverage: PropTypes.shape({
+    _id: PropTypes.string.isRequired,
+    name: PropTypes.string.isRequired,
+    category: PropTypes.string.isRequired,
+    quantity: PropTypes.number.isRequired,
+    unit: PropTypes.string.isRequired,
+  }).isRequired,
   onEditBeverage: PropTypes.func.isRequired,
   onDeleteBeverage: PropTypes.func.isRequired,
   onViewHistory: PropTypes.func.isRequired,
 };
 
 export default BeverageCard;
+

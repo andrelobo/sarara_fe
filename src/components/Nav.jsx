@@ -1,95 +1,90 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { FaBars } from 'react-icons/fa';
-import sararaLogo from '../assets/sarara-logo.png'; // Importando a imagem do logo
+import { useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { FaBars, FaTimes, FaGlassMartiniAlt, FaCarrot, FaHome, FaSignInAlt, FaUserPlus } from 'react-icons/fa';
 
 const Nav = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [isBeveragesOpen, setIsBeveragesOpen] = useState(false);
-  const [isIngredientsOpen, setIsIngredientsOpen] = useState(false);
+  const location = useLocation();
 
-  const toggleNav = () => {
-    setIsOpen(prevIsOpen => !prevIsOpen);
-  };
+  const navItems = [
+    { path: '/boas-vindas', name: 'Home', icon: <FaHome /> },
+    { path: '/beverages', name: 'Bebidas', icon: <FaGlassMartiniAlt /> },
+    { path: '/ingredients', name: 'Ingredientes', icon: <FaCarrot /> },
+    { path: '/login', name: 'Login', icon: <FaSignInAlt /> },
+    { path: '/cadastro', name: 'Cadastro', icon: <FaUserPlus /> },
+  ];
 
-  const closeNav = () => {
-    setIsOpen(false);
-    setIsBeveragesOpen(false);
-    setIsIngredientsOpen(false);
-  };
-
-  const toggleSubMenu = (setSubMenu) => {
-    setSubMenu(prevIsOpen => !prevIsOpen);
-  };
+  const toggleMenu = () => setIsOpen(!isOpen);
 
   return (
-    <nav className="bg-[#15508c] p-4">
-      <div className="container mx-auto flex justify-between items-center">
-        <Link to="/" onClick={closeNav} className="flex items-center ml-2">
-          <img src={sararaLogo} alt="Sarará Estoque Bar" width={150} />
-         
-          <h8 className="mt-2 ml-4 text-yellow-500 text-xs">Bar Chef</h8>        </Link>
-
-        {!isOpen && (
-          <div className="md:hidden" onClick={toggleNav}>
-            <FaBars className="text-yellow-300" size={24} />
+    <nav className="bg-primary text-text">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16">
+          <div className="flex items-center">
+            <Link to="/" className="flex-shrink-0">
+              <img className="h-8 w-8" src="/logo.png" alt="BarChef Logo" />
+            </Link>
+            <div className="hidden md:block">
+              <div className="ml-10 flex items-baseline space-x-4">
+                {navItems.map((item) => (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    className={`px-3 py-2 rounded-md text-sm font-medium ${
+                      location.pathname === item.path
+                        ? 'bg-primary-dark text-secondary'
+                        : 'text-text-dark hover:bg-primary-light hover:text-text'
+                    }`}
+                  >
+                    <span className="flex items-center">
+                      {item.icon}
+                      <span className="ml-2">{item.name}</span>
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            </div>
           </div>
-        )}
-
-        {isOpen && (
-          <div className="md:hidden absolute top-0 right-0 p-2" onClick={closeNav}>
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-yellow-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
+          <div className="-mr-2 flex md:hidden">
+            <button
+              onClick={toggleMenu}
+              type="button"
+              className="bg-primary-dark inline-flex items-center justify-center p-2 rounded-md text-text-dark hover:text-text hover:bg-primary-light focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-primary focus:ring-white"
+              aria-controls="mobile-menu"
+              aria-expanded="false"
+            >
+              <span className="sr-only">Abrir menu principal</span>
+              {isOpen ? <FaTimes className="block h-6 w-6" /> : <FaBars className="block h-6 w-6" />}
+            </button>
           </div>
-        )}
+        </div>
+      </div>
 
-        <ul className={`md:flex md:items-center ${isOpen ? 'flex flex-col items-center mt-4' : 'hidden'} w-full md:w-auto`}>
-          <li className="md:ml-4 my-2 md:my-0">
-            <Link to="/login" onClick={closeNav} className="text-yellow-300 block md:inline-block">Login</Link>
-          </li>
-          <li className="md:ml-4 my-2 md:my-0">
-            <Link to="/cadastro" onClick={closeNav} className="text-yellow-300 block md:inline-block">Cadastro</Link>
-          </li>
-          <li className="md:ml-4 my-2 md:my-0 relative">
-            <button onClick={() => toggleSubMenu(setIsBeveragesOpen)} className="text-white block md:inline-block focus:outline-none">
-              Bebidas
-            </button>
-            {isBeveragesOpen && (
-              <ul className="bg-[#15508c] mt-2 p-2 rounded-lg md:absolute md:mt-0 md:ml-4 md:shadow-lg text-sm text-gray-200">
-                <li className="my-2 md:my-0">
-                  <Link to="/beverages" onClick={closeNav} className="block md:inline-block">Lista de Bebidas</Link>
-                </li>
-                <li className="my-2 md:my-0">
-                  <Link to="/cadastro-beverage" onClick={closeNav} className="block md:inline-block">Cadastro de Bebidas</Link>
-                </li>
-                <li className="my-2 md:my-0">
-                  <Link to="/beverages/history" onClick={closeNav} className="block md:inline-block">Gráficos de Bebidas</Link>
-                </li>
-
-              </ul>
-            )}
-          </li>
-          <li className="md:ml-4 my-2 md:my-0 relative">
-            <button onClick={() => toggleSubMenu(setIsIngredientsOpen)} className="text-white block md:inline-block focus:outline-none">
-              Ingredientes
-            </button>
-            {isIngredientsOpen && (
-              <ul className="bg-[#15508c] mt-2 p-2 rounded-lg md:absolute md:mt-0 md:ml-4 md:shadow-lg text-sm text-gray-200">
-                <li className="my-2 md:my-0">
-                  <Link to="/ingredients" onClick={closeNav} className="block md:inline-block">Lista de Ingredientes</Link>
-                </li>
-                <li className="my-2 md:my-0">
-                  <Link to="/cadastro-ingredient" onClick={closeNav} className="block md:inline-block">Cadastro Ingrediente</Link>
-                </li>
-              </ul>
-            )}
-          </li>
-        </ul>
+      {/* Mobile menu, show/hide based on menu state. */}
+      <div className={`md:hidden ${isOpen ? 'block' : 'hidden'}`} id="mobile-menu">
+        <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
+          {navItems.map((item) => (
+            <Link
+              key={item.path}
+              to={item.path}
+              className={`block px-3 py-2 rounded-md text-base font-medium ${
+                location.pathname === item.path
+                  ? 'bg-primary-dark text-secondary'
+                  : 'text-text-dark hover:bg-primary-light hover:text-text'
+              }`}
+              onClick={toggleMenu}
+            >
+              <span className="flex items-center">
+                {item.icon}
+                <span className="ml-2">{item.name}</span>
+              </span>
+            </Link>
+          ))}
+        </div>
       </div>
     </nav>
-    
   );
 };
 
 export default Nav;
+
