@@ -101,12 +101,22 @@ const BeveragesList = () => {
 
   const handleViewHistory = useCallback((beverage) => setViewingHistory(beverage), []);
 
+  const sortBeverages = useCallback((beverages) => {
+    const categoriesOrder = ['Destilado', 'Fermentado', 'Não Alcoólico'];
+    return beverages.sort((a, b) => {
+      const categoryAIndex = categoriesOrder.indexOf(a.category);
+      const categoryBIndex = categoriesOrder.indexOf(b.category);
+      return categoryAIndex - categoryBIndex;
+    });
+  }, []);
+
   const filteredBeverages = useMemo(() => {
-    return beverages.filter(beverage =>
+    const sortedBeverages = sortBeverages(beverages);
+    return sortedBeverages.filter(beverage =>
       beverage.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       beverage.category.toLowerCase().includes(searchTerm.toLowerCase())
     );
-  }, [beverages, searchTerm]);
+  }, [beverages, searchTerm, sortBeverages]);
 
   const totalPages = Math.ceil(filteredBeverages.length / itemsPerPage);
   const indexOfLastItem = currentPage * itemsPerPage;
@@ -187,4 +197,3 @@ const BeveragesList = () => {
 };
 
 export default BeveragesList;
-
