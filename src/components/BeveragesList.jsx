@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import BeverageCard from './BeverageCard';
 import EditBeverageCard from './EditBeverageCard';
 import BeverageHistory from './BeverageHistory';
@@ -6,7 +6,31 @@ import ErrorBoundary from './ErrorBoundary';
 import Pagination from './Pagination';
 import { FaSearch, FaSync } from 'react-icons/fa';
 
-const API_BASE_URL = 'https://sarara-be.vercel.app/api'; // Ajuste esta URL para a URL correta do seu backend
+const API_BASE_URL = 'https://sarara-be.vercel.app/api';
+
+const BEVERAGE_ORDER = [
+  'Cachaça Pirassununga 51',
+  'Cachaça Cravinho',
+  'Gin Rock',
+  'Gin Gordon',
+  'Gin Tanqueray',
+  'Gin Hilary',
+  'Vodka Smirnoff',
+  'Vodka Absolut',
+  'Tequila Prata',
+  'Tequila Ouro',
+  'Whisky Old Parr',
+  'Whisky Red Label',
+  'Aperol',
+  'Espumante para venda',
+  'Espumante para drinks',
+  'Vinho Tinto',
+  'Vinho Rosé',
+  'Monin Morango',
+  'Água Tônica',
+  'Red Bull Tropical',
+  'Bali Tropical'
+];
 
 const BeveragesList = () => {
   const [beverages, setBeverages] = useState([]);
@@ -59,7 +83,7 @@ const BeveragesList = () => {
 
   useEffect(() => {
     fetchBeverages();
-  }, [fetchBeverages, retryCount]);
+  }, [fetchBeverages]);
 
   const handleEditBeverage = useCallback((beverage) => setEditingBeverage(beverage), []);
 
@@ -71,11 +95,13 @@ const BeveragesList = () => {
       });
       if (response.ok) {
         setBeverages(prevBeverages => prevBeverages.filter(beverage => beverage._id !== beverageId));
+        return Promise.resolve();
       } else {
         throw new Error('Falha ao deletar a bebida');
       }
     } catch (error) {
       handleError(error, 'Erro ao deletar a bebida. Por favor, tente novamente.');
+      return Promise.reject(error);
     }
   }, [headers, handleError]);
 
@@ -101,21 +127,31 @@ const BeveragesList = () => {
 
   const handleViewHistory = useCallback((beverage) => setViewingHistory(beverage), []);
 
-  const sortBeverages = useCallback((beverages) => {
-    const categoriesOrder = ['Destilado', 'Fermentado', 'Não Alcoólico'];
-    return beverages.sort((a, b) => {
-      const categoryAIndex = categoriesOrder.indexOf(a.category);
-      const categoryBIndex = categoriesOrder.indexOf(b.category);
-      return categoryAIndex - categoryBIndex;
+  const sortBeverages = useCallback((beveragesToSort) => {
+    return beveragesToSort.sort((a, b) => {
+      const nameA = a.name.toLowerCase();
+      const nameB = b.name.toLowerCase();
+      
+      const indexA = BEVERAGE_ORDER.findIndex(item => 
+        nameA.includes(item.toLowerCase()) || item.toLowerCase().includes(nameA)
+      );
+      const indexB = BEVERAGE_ORDER.findIndex(item => 
+        nameB.includes(item.toLowerCase()) || item.toLowerCase().includes(nameB)
+      );
+
+      if (indexA === -1 && indexB === -1) return 0;
+      if (indexA === -1) return 1;
+      if (indexB === -1) return -1;
+      return indexA - indexB;
     });
   }, []);
 
   const filteredBeverages = useMemo(() => {
-    const sortedBeverages = sortBeverages(beverages);
-    return sortedBeverages.filter(beverage =>
+    const filtered = beverages.filter(beverage =>
       beverage.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       beverage.category.toLowerCase().includes(searchTerm.toLowerCase())
     );
+    return sortBeverages(filtered);
   }, [beverages, searchTerm, sortBeverages]);
 
   const totalPages = Math.ceil(filteredBeverages.length / itemsPerPage);
@@ -197,3 +233,4 @@ const BeveragesList = () => {
 };
 
 export default BeveragesList;
+
