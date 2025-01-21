@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { FaHome, FaGlassMartiniAlt, FaCarrot, FaSignInAlt, FaUserPlus, FaTimes, FaBars } from 'react-icons/fa';
+import { FaHome, FaGlassMartiniAlt, FaCarrot, FaSignInAlt, FaUserPlus, FaChartLine, FaBars, FaTimes } from 'react-icons/fa';
 import logo from '../assets/sarara-logo.png';
 
 const Nav = () => {
@@ -11,6 +11,7 @@ const Nav = () => {
     { path: '/boas-vindas', name: 'Home', icon: <FaHome /> },
     { path: '/beverages', name: 'Bebidas', icon: <FaGlassMartiniAlt /> },
     { path: '/ingredients', name: 'Ingredientes', icon: <FaCarrot /> },
+    { path: '/beverages/history', name: 'Histórico de Bebidas', icon: <FaChartLine /> },
     { path: '/login', name: 'Login', icon: <FaSignInAlt /> },
     { path: '/cadastro', name: 'Cadastro', icon: <FaUserPlus /> },
   ];
@@ -23,7 +24,12 @@ const Nav = () => {
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center">
             <Link to="/" className="flex-shrink-0">
-              <img className="h-8 w-32" src={logo}  alt="BarChef Logo" />
+              <img
+                className="h-8 w-auto"
+                src={logo}
+                alt="BarChef Logo"
+                loading="lazy" // Otimização para 4G
+              />
             </Link>
             <div className="hidden md:block">
               <div className="ml-10 flex items-baseline space-x-4">
@@ -52,7 +58,7 @@ const Nav = () => {
               type="button"
               className="bg-primary-dark inline-flex items-center justify-center p-2 rounded-md text-text-dark hover:text-text hover:bg-primary-light focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-primary focus:ring-white"
               aria-controls="mobile-menu"
-              aria-expanded="false"
+              aria-expanded={isOpen}
             >
               <span className="sr-only">Abrir menu principal</span>
               {isOpen ? <FaTimes className="block h-6 w-6" /> : <FaBars className="block h-6 w-6" />}

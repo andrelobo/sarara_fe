@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 import CategoryDistributionChart from './components/charts/CategoryDistributionChart';
 import InventoryTrendChart from './components/charts/InventoryTrendChart';
@@ -44,7 +44,7 @@ const BeveragesGraphPage = () => {
 
   return (
     <div className="p-4">
-      <h1 className="text-2xl font-bold mb-4">Beverages Dashboard</h1>
+      <h1 className="text-2xl font-bold mb-4">DashBoard de Bebidas</h1>
       <div className="mb-4">
         <CategoryDistributionChart data={categoryDistribution} />
       </div>

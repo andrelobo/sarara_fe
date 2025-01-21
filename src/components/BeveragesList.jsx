@@ -51,11 +51,11 @@ const BeveragesList = () => {
 
   const handleError = useCallback((error, defaultMessage) => {
     console.error('Erro:', error);
-    if (error.message === 'Failed to fetch') {
-      setError('Não foi possível conectar ao servidor. Verifique sua conexão de internet.');
-    } else {
-      setError(defaultMessage || 'Ocorreu um erro. Por favor, tente novamente.');
-    }
+    setError(
+      error.message === 'Failed to fetch'
+        ? 'Não foi possível conectar ao servidor. Verifique sua conexão de internet.'
+        : defaultMessage || 'Ocorreu um erro. Por favor, tente novamente.'
+    );
   }, []);
 
   const fetchBeverages = useCallback(async () => {
@@ -63,19 +63,13 @@ const BeveragesList = () => {
     setError('');
     try {
       const response = await fetch(`${API_BASE_URL}/beverages`, { headers });
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const data = await response.json();
       setBeverages(data);
       setRetryCount(0);
     } catch (error) {
       handleError(error, 'Erro ao buscar bebidas. Por favor, tente novamente.');
-      if (retryCount < 3) {
-        setTimeout(() => {
-          setRetryCount(prev => prev + 1);
-        }, 5000);
-      }
+      if (retryCount < 3) setRetryCount(prev => prev + 1);
     } finally {
       setIsLoading(false);
     }
@@ -85,7 +79,8 @@ const BeveragesList = () => {
     fetchBeverages();
   }, [fetchBeverages]);
 
-  const handleEditBeverage = useCallback((beverage) => setEditingBeverage(beverage), []);
+  const handleEditBeverage = beverage => setEditingBeverage(beverage);
+  const handleViewHistory = beverage => setViewingHistory(beverage);
 
   const handleDeleteBeverage = useCallback(async (beverageId) => {
     try {
@@ -93,15 +88,10 @@ const BeveragesList = () => {
         method: 'DELETE',
         headers,
       });
-      if (response.ok) {
-        setBeverages(prevBeverages => prevBeverages.filter(beverage => beverage._id !== beverageId));
-        return Promise.resolve();
-      } else {
-        throw new Error('Falha ao deletar a bebida');
-      }
+      if (!response.ok) throw new Error('Falha ao deletar a bebida');
+      setBeverages(prev => prev.filter(b => b._id !== beverageId));
     } catch (error) {
       handleError(error, 'Erro ao deletar a bebida. Por favor, tente novamente.');
-      return Promise.reject(error);
     }
   }, [headers, handleError]);
 
@@ -112,30 +102,23 @@ const BeveragesList = () => {
         headers,
         body: JSON.stringify(updatedBeverage),
       });
-      if (response.ok) {
-        setBeverages(prevBeverages => prevBeverages.map(beverage =>
-          beverage._id === updatedBeverage._id ? updatedBeverage : beverage
-        ));
-        setEditingBeverage(null);
-      } else {
-        throw new Error('Falha ao salvar a bebida');
-      }
+      if (!response.ok) throw new Error('Falha ao salvar a bebida');
+      setBeverages(prev => prev.map(b => b._id === updatedBeverage._id ? updatedBeverage : b));
+      setEditingBeverage(null);
     } catch (error) {
       handleError(error, 'Erro ao salvar a bebida. Por favor, tente novamente.');
     }
   }, [headers, handleError]);
 
-  const handleViewHistory = useCallback((beverage) => setViewingHistory(beverage), []);
-
-  const sortBeverages = useCallback((beveragesToSort) => {
+  const sortBeverages = useCallback(beveragesToSort => {
     return beveragesToSort.sort((a, b) => {
       const nameA = a.name.toLowerCase();
       const nameB = b.name.toLowerCase();
-      
-      const indexA = BEVERAGE_ORDER.findIndex(item => 
+
+      const indexA = BEVERAGE_ORDER.findIndex(item =>
         nameA.includes(item.toLowerCase()) || item.toLowerCase().includes(nameA)
       );
-      const indexB = BEVERAGE_ORDER.findIndex(item => 
+      const indexB = BEVERAGE_ORDER.findIndex(item =>
         nameB.includes(item.toLowerCase()) || item.toLowerCase().includes(nameB)
       );
 
@@ -147,17 +130,18 @@ const BeveragesList = () => {
   }, []);
 
   const filteredBeverages = useMemo(() => {
-    const filtered = beverages.filter(beverage =>
-      beverage.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      beverage.category.toLowerCase().includes(searchTerm.toLowerCase())
+    const filtered = beverages.filter(b =>
+      b.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      b.category.toLowerCase().includes(searchTerm.toLowerCase())
     );
     return sortBeverages(filtered);
   }, [beverages, searchTerm, sortBeverages]);
 
   const totalPages = Math.ceil(filteredBeverages.length / itemsPerPage);
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentBeverages = filteredBeverages.slice(indexOfFirstItem, indexOfLastItem);
+  const currentBeverages = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredBeverages.slice(start, start + itemsPerPage);
+  }, [filteredBeverages, currentPage, itemsPerPage]);
 
   if (isLoading && !error) {
     return (
@@ -192,7 +176,7 @@ const BeveragesList = () => {
           />
           <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-text-dark" />
         </div>
-        {beverages.length > 0 ? (
+        {filteredBeverages.length > 0 ? (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {currentBeverages.map(beverage => (
@@ -233,4 +217,3 @@ const BeveragesList = () => {
 };
 
 export default BeveragesList;
-
