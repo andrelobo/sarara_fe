@@ -5,7 +5,7 @@ import Swal from "sweetalert2";
 import "sweetalert2/src/sweetalert2.scss";
 
 const BeverageCard = React.memo(
-  ({ beverage, onEditBeverage, onDeleteBeverage, onViewHistory }) => {
+  function BeverageCard({ beverage, onEditBeverage, onDeleteBeverage, onViewHistory }) {
     const { name, category, quantity, unit } = beverage;
 
     const handleDelete = useCallback(() => {

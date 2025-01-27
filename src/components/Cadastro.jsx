@@ -9,8 +9,10 @@ const Cadastro = ({ onCadastro }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState({});
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
+  // Validação do formulário
   const validateForm = useCallback(() => {
     const newErrors = {};
     if (!username.trim()) newErrors.username = 'Nome de usuário é obrigatório';
@@ -21,46 +23,64 @@ const Cadastro = ({ onCadastro }) => {
     return Object.keys(newErrors).length === 0;
   }, [username, email, password]);
 
-  const handleSubmit = useCallback(async (e) => {
-    e.preventDefault();
-    if (!validateForm()) return;
+  // Função para enviar o formulário
+  const handleSubmit = useCallback(
+    async (e) => {
+      e.preventDefault();
+      if (!validateForm()) return; // Valida o formulário antes de enviar
 
-    try {
-      const response = await fetch('https://sarara-be.vercel.app/api/users', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ username, email, password })
-      });
+      setIsLoading(true); // Ativa o estado de loading
 
-      if (response.ok) {
+      try {
+        console.log('Dados enviados:', { username, email, password }); // Log dos dados enviados
+
+        const response = await fetch('http://localhost:7778/api/users', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ username, email, password }),
+        });
+
+        console.log('Resposta da API:', response); // Log da resposta
+
         const data = await response.json();
-        onCadastro(data.token);
-        
+        console.log('Dados da resposta:', data); // Log dos dados da resposta
+
+        if (!response.ok) {
+          // Tratamento de erros específicos
+          Swal.fire({
+            icon: 'error',
+            title: 'Erro ao cadastrar',
+            text: data.message || 'Ocorreu um erro no servidor. Tente novamente.',
+          });
+          return;
+        }
+
+        // Cadastro bem-sucedido
+        if (typeof onCadastro === 'function') {
+          onCadastro(data.token); // Atualiza o estado de autenticação
+        }
+
         Swal.fire({
           icon: 'success',
           title: 'Cadastro realizado com sucesso!',
           text: 'Bem-vindo! Agora você pode acessar sua conta.',
-          confirmButtonText: 'Ok'
-        }).then(() => navigate('/boas-vindas'));
-      } else {
-        const errorData = await response.json();
+          confirmButtonText: 'Ok',
+        }).then(() => navigate('/boas-vindas')); // Redireciona após o cadastro
+      } catch (error) {
+        console.error('Erro de rede:', error); // Log do erro de rede
         Swal.fire({
           icon: 'error',
-          title: 'Erro ao cadastrar',
-          text: errorData.message || 'Por favor, tente novamente.',
+          title: 'Erro de rede',
+          text: 'Por favor, tente novamente mais tarde.',
         });
+      } finally {
+        setIsLoading(false); // Desativa o estado de loading
       }
-    } catch (error) {
-      console.error('Erro de rede:', error);
-      Swal.fire({
-        icon: 'error',
-        title: 'Erro de rede',
-        text: 'Por favor, tente novamente mais tarde.',
-      });
-    }
-  }, [username, email, password, validateForm, onCadastro, navigate]);
+    },
+    [username, email, password, validateForm, onCadastro, navigate]
+  );
 
   return (
     <ErrorBoundary>
@@ -68,8 +88,11 @@ const Cadastro = ({ onCadastro }) => {
         <div className="max-w-md w-full p-8 bg-background-light shadow-md rounded-lg">
           <h2 className="text-center text-3xl text-secondary">Cadastro</h2>
           <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+            {/* Campo Nome de Usuário */}
             <div>
-              <label htmlFor="username" className="sr-only">Nome de Usuário</label>
+              <label htmlFor="username" className="sr-only">
+                Nome de Usuário
+              </label>
               <input
                 id="username"
                 name="username"
@@ -79,11 +102,16 @@ const Cadastro = ({ onCadastro }) => {
                 placeholder="Nome de Usuário"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
+                disabled={isLoading} // Desabilita o campo durante o loading
               />
               {errors.username && <p className="text-error text-sm">{errors.username}</p>}
             </div>
+
+            {/* Campo Email */}
             <div>
-              <label htmlFor="email-address" className="sr-only">Email</label>
+              <label htmlFor="email-address" className="sr-only">
+                Email
+              </label>
               <input
                 id="email-address"
                 name="email"
@@ -93,11 +121,16 @@ const Cadastro = ({ onCadastro }) => {
                 placeholder="Email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                disabled={isLoading} // Desabilita o campo durante o loading
               />
               {errors.email && <p className="text-error text-sm">{errors.email}</p>}
             </div>
+
+            {/* Campo Senha */}
             <div>
-              <label htmlFor="password" className="sr-only">Senha</label>
+              <label htmlFor="password" className="sr-only">
+                Senha
+              </label>
               <input
                 id="password"
                 name="password"
@@ -107,14 +140,18 @@ const Cadastro = ({ onCadastro }) => {
                 placeholder="Senha"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                disabled={isLoading} // Desabilita o campo durante o loading
               />
               {errors.password && <p className="text-error text-sm">{errors.password}</p>}
             </div>
+
+            {/* Botão de Cadastro */}
             <button
               type="submit"
               className="w-full py-2 px-4 border border-transparent text-sm font-medium rounded-md text-background bg-secondary hover:bg-secondary-light focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-secondary"
+              disabled={isLoading} // Desabilita o botão durante o loading
             >
-              Cadastrar
+              {isLoading ? 'Cadastrando...' : 'Cadastrar'}
             </button>
           </form>
         </div>
@@ -122,9 +159,15 @@ const Cadastro = ({ onCadastro }) => {
     </ErrorBoundary>
   );
 };
+
+// Validação das props
 Cadastro.propTypes = {
-  onCadastro: PropTypes.func.isRequired,
+  onCadastro: PropTypes.func,
+};
+
+// Valor padrão para a prop onCadastro
+Cadastro.defaultProps = {
+  onCadastro: () => {},
 };
 
 export default Cadastro;
-
