@@ -1,61 +1,66 @@
-import { Suspense, lazy } from 'react';
-import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
-import Nav from './components/Nav';
-import ErrorBoundary from './components/ErrorBoundary';
-import ErrorFallback from './components/ErrorFallback';
+"use client"
 
-// Lazy Loading de Rotas
-const Login = lazy(() => import('./components/Login'));
-const Cadastro = lazy(() => import('./components/Cadastro'));
-const BoasVindas = lazy(() => import('./components/BoasVindas'));
-const BeveragesList = lazy(() => import('./components/BeveragesList'));
-const IngredientsList = lazy(() => import('./components/IngredientsList'));
-const CreateBeverage = lazy(() => import('./components/CreateBeverage'));
-const CreateIngredient = lazy(() => import('./components/CreateIngredient'));
-const BeverageDetailPage = lazy(() => import('./pages/BeverageDetailPage'));
-const BeverageHistoryPage = lazy(() => import('./pages/BeverageHistoryPage'));
+import React, { useEffect } from "react"
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom"
+import { OfflineProvider } from "./context/OfflineContext"
+import Nav from "./components/Nav"
+import BeveragesList from "./components/BeveragesList"
+import IngredientsList from "./components/IngredientsList"
+import BeverageHistory from "./components/BeverageHistory"
+import CreateBeverage from "./components/CreateBeverage"
+import CreateIngredient from "./components/CreateIngredient"
+import Login from "./components/Login"
+import Cadastro from "./components/Cadastro"
+import OfflineIndicator from "./components/OfflineIndicator"
+import SyncManager from "./components/SyncManager"
+import ServiceWorkerRegistration from "./components/ServiceWorkerRegistration"
+import { initDB } from "./utils/db"
 
-const App = () => {
+function App() {
+  const [isAuthenticated, setIsAuthenticated] = React.useState(!!localStorage.getItem("authToken"))
+
+  useEffect(() => {
+    // Inicializar o banco de dados IndexedDB quando o aplicativo carregar
+    initDB().catch((error) => {
+      console.error("Erro ao inicializar o banco de dados:", error)
+    })
+  }, [])
+
   const handleLogin = (token) => {
-    localStorage.setItem('authToken', token);
-  };
+    localStorage.setItem("authToken", token)
+    setIsAuthenticated(true)
+  }
 
-  const isAuthenticated = !!localStorage.getItem('authToken');
+  const handleLogout = () => {
+    localStorage.removeItem("authToken")
+    setIsAuthenticated(false)
+  }
 
   return (
-    <ErrorBoundary FallbackComponent={ErrorFallback}>
+    <OfflineProvider>
       <Router>
-        <div className="flex flex-col min-h-screen bg-background text-text">
-          <Nav />
-          <main className="flex-grow container mx-auto px-4 py-8">
-            <Suspense fallback={<div>Loading...</div>}>
-              <Routes>
-                <Route
-                  path="/login"
-                  element={!isAuthenticated ? <Login onLogin={handleLogin} /> : <Navigate to="/boas-vindas" replace />}
-                />
-                <Route
-                  path="/cadastro"
-                  element={!isAuthenticated ? <Cadastro /> : <Navigate to="/boas-vindas" replace />}
-                />
-                <Route path="/boas-vindas" element={isAuthenticated ? <BoasVindas /> : <Navigate to="/login" replace />} />
-                <Route path="/beverages" element={isAuthenticated ? <BeveragesList /> : <Navigate to="/login" replace />} />
-                <Route path="/ingredients" element={isAuthenticated ? <IngredientsList /> : <Navigate to="/login" replace />} />
-                <Route path="/cadastro-beverage" element={isAuthenticated ? <CreateBeverage /> : <Navigate to="/login" replace />} />
-                <Route path="/cadastro-ingredient" element={isAuthenticated ? <CreateIngredient /> : <Navigate to="/login" replace />} />
-                <Route path="/beverages/:id" element={isAuthenticated ? <BeverageDetailPage /> : <Navigate to="/login" replace />} />
-                <Route path="/beverages/history" element={isAuthenticated ? <BeverageHistoryPage /> : <Navigate to="/login" replace />} />
-                <Route path="/" element={<Navigate to="/login" replace />} />
-              </Routes>
-            </Suspense>
-          </main>
-          <footer className="bg-primary-dark text-text-dark py-4 text-center">
-            <p>&copy; 2024 BarChef. Todos os direitos reservados.</p>
-          </footer>
+        <div className="min-h-screen bg-background">
+          <Nav isAuthenticated={isAuthenticated} onLogout={handleLogout} />
+          <OfflineIndicator />
+          <SyncManager />
+          <ServiceWorkerRegistration />
+          <div className="container mx-auto px-4 py-8">
+            <Routes>
+              <Route path="/" element={isAuthenticated ? <BeveragesList /> : <Login onLogin={handleLogin} />} />
+              <Route path="/login" element={<Login onLogin={handleLogin} />} />
+              <Route path="/cadastro" element={<Cadastro onCadastro={handleLogin} />} />
+              <Route path="/beverages" element={<BeveragesList />} />
+              <Route path="/beverages/new" element={<CreateBeverage />} />
+              <Route path="/beverages/history" element={<BeverageHistory />} />
+              <Route path="/ingredients" element={<IngredientsList />} />
+              <Route path="/ingredients/new" element={<CreateIngredient />} />
+            </Routes>
+          </div>
         </div>
       </Router>
-    </ErrorBoundary>
-  );
-};
+    </OfflineProvider>
+  )
+}
 
-export default App;
+export default App
+

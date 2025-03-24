@@ -1,8 +1,9 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import ErrorBoundary from './ErrorBoundary';
 import PropTypes from 'prop-types';
+import { saveFormData, getFormData, clearFormData } from '../utils/db'; // Funções do IndexedDB
 
 const Cadastro = ({ onCadastro }) => {
   const [username, setUsername] = useState('');
@@ -11,6 +12,20 @@ const Cadastro = ({ onCadastro }) => {
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+
+  // Carrega dados do formulário salvos no IndexedDB (se houver)
+  useEffect(() => {
+    const loadFormData = async () => {
+      const savedData = await getFormData('cadastro');
+      if (savedData) {
+        setUsername(savedData.username || '');
+        setEmail(savedData.email || '');
+        setPassword(savedData.password || '');
+      }
+    };
+
+    loadFormData();
+  }, []);
 
   // Validação do formulário
   const validateForm = useCallback(() => {
@@ -29,10 +44,20 @@ const Cadastro = ({ onCadastro }) => {
       e.preventDefault();
       if (!validateForm()) return; // Valida o formulário antes de enviar
 
+      if (!navigator.onLine) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Sem conexão',
+          text: 'Você precisa estar online para se cadastrar.',
+        });
+        return;
+      }
+
       setIsLoading(true); // Ativa o estado de loading
 
       try {
-        console.log('Dados enviados:', { username, email, password }); // Log dos dados enviados
+        // Salva os dados do formulário no IndexedDB (para preenchimento automático)
+        await saveFormData('cadastro', { username, email, password });
 
         const response = await fetch('http://localhost:7778/api/users', {
           method: 'POST',
@@ -42,13 +67,9 @@ const Cadastro = ({ onCadastro }) => {
           body: JSON.stringify({ username, email, password }),
         });
 
-        console.log('Resposta da API:', response); // Log da resposta
-
         const data = await response.json();
-        console.log('Dados da resposta:', data); // Log dos dados da resposta
 
         if (!response.ok) {
-          // Tratamento de erros específicos
           Swal.fire({
             icon: 'error',
             title: 'Erro ao cadastrar',
@@ -62,6 +83,9 @@ const Cadastro = ({ onCadastro }) => {
           onCadastro(data.token); // Atualiza o estado de autenticação
         }
 
+        // Limpa os dados do formulário no IndexedDB após o cadastro bem-sucedido
+        await clearFormData('cadastro');
+
         Swal.fire({
           icon: 'success',
           title: 'Cadastro realizado com sucesso!',
@@ -69,7 +93,7 @@ const Cadastro = ({ onCadastro }) => {
           confirmButtonText: 'Ok',
         }).then(() => navigate('/boas-vindas')); // Redireciona após o cadastro
       } catch (error) {
-        console.error('Erro de rede:', error); // Log do erro de rede
+        console.error('Erro de rede:', error);
         Swal.fire({
           icon: 'error',
           title: 'Erro de rede',
@@ -102,7 +126,7 @@ const Cadastro = ({ onCadastro }) => {
                 placeholder="Nome de Usuário"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                disabled={isLoading} // Desabilita o campo durante o loading
+                disabled={isLoading}
               />
               {errors.username && <p className="text-error text-sm">{errors.username}</p>}
             </div>
@@ -121,7 +145,7 @@ const Cadastro = ({ onCadastro }) => {
                 placeholder="Email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                disabled={isLoading} // Desabilita o campo durante o loading
+                disabled={isLoading}
               />
               {errors.email && <p className="text-error text-sm">{errors.email}</p>}
             </div>
@@ -140,7 +164,7 @@ const Cadastro = ({ onCadastro }) => {
                 placeholder="Senha"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                disabled={isLoading} // Desabilita o campo durante o loading
+                disabled={isLoading}
               />
               {errors.password && <p className="text-error text-sm">{errors.password}</p>}
             </div>
@@ -149,7 +173,7 @@ const Cadastro = ({ onCadastro }) => {
             <button
               type="submit"
               className="w-full py-2 px-4 border border-transparent text-sm font-medium rounded-md text-background bg-secondary hover:bg-secondary-light focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-secondary"
-              disabled={isLoading} // Desabilita o botão durante o loading
+              disabled={isLoading}
             >
               {isLoading ? 'Cadastrando...' : 'Cadastrar'}
             </button>

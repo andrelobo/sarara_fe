@@ -1,8 +1,11 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import ErrorBoundary from './ErrorBoundary';
+import { saveData, saveSyncQueue } from '../utils/db'; // Funções do IndexedDB
+import Swal from 'sweetalert2';
+import 'sweetalert2/src/sweetalert2.scss';
 
 const CreateBeverage = () => {
   const [name, setName] = useState('');
@@ -18,28 +21,44 @@ const CreateBeverage = () => {
     e.preventDefault();
     setIsSubmitting(true);
     setError('');
+
+    const newBeverage = {
+      name,
+      category,
+      quantity: Number(quantity),
+      unit,
+      date: date.toISOString().split('T')[0],
+    };
+
     try {
-      const token = localStorage.getItem('authToken');
-      const newBeverage = {
-        name,
-        category,
-        quantity: Number(quantity),
-        unit,
-        date: date.toISOString().split('T')[0],
-      };
-      const response = await fetch('https://sarara-be.vercel.app/api/beverages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify(newBeverage),
-      });
-      if (response.ok) {
-        navigate('/beverages');
+      if (navigator.onLine) {
+        // Se online, envia diretamente para o backend
+        const token = localStorage.getItem('authToken');
+        const response = await fetch('https://sarara-be.vercel.app/api/beverages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify(newBeverage),
+        });
+
+        if (response.ok) {
+          navigate('/beverages');
+        } else {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Falha ao criar bebida');
+        }
       } else {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Falha ao criar bebida');
+        // Se offline, armazena no IndexedDB e na fila de sincronização
+        await saveData('beverages', newBeverage); // Armazena a bebida no IndexedDB
+        await saveSyncQueue({ type: 'create', data: newBeverage }); // Adiciona à fila de sincronização
+
+        Swal.fire({
+          icon: 'success',
+          title: 'Bebida cadastrada offline!',
+          text: 'A bebida será sincronizada com o servidor quando a conexão for restabelecida.',
+        }).then(() => navigate('/beverages'));
       }
     } catch (error) {
       console.error('Erro ao criar bebida:', error);
@@ -53,6 +72,11 @@ const CreateBeverage = () => {
     <ErrorBoundary>
       <div className="container mx-auto p-4 bg-background text-text">
         <h1 className="text-2xl mb-4 text-secondary">Cadastrar Bebida</h1>
+        {!navigator.onLine && (
+          <div className="text-warning text-center mb-4 p-4 bg-background-light rounded-lg border border-warning">
+            <p>Você está offline. A bebida será sincronizada quando a conexão for restabelecida.</p>
+          </div>
+        )}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-text-dark">Nome</label>
@@ -123,4 +147,3 @@ const CreateBeverage = () => {
 };
 
 export default CreateBeverage;
-

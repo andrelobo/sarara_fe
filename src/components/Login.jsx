@@ -1,16 +1,51 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
+import { saveToken, getToken, isTokenValid } from '../utils/db'; // Importe as funções do IndexedDB
 
 const Login = ({ onLogin }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false); // Adicionado estado de loading
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+
+  // Verifica se o usuário está offline e tem um token válido
+  useEffect(() => {
+    const checkOfflineAccess = async () => {
+      if (!navigator.onLine) {
+        const token = await getToken();
+        if (token && isTokenValid(token)) {
+          Swal.fire({
+            icon: 'info',
+            title: 'Modo Offline',
+            text: 'Você está offline, mas pode acessar funcionalidades limitadas.',
+          }).then(() => navigate('/beverages')); // Redireciona para a página de bebidas
+        } else {
+          Swal.fire({
+            icon: 'warning',
+            title: 'Sem conexão',
+            text: 'Você precisa estar online para fazer login.',
+          });
+        }
+      }
+    };
+
+    checkOfflineAccess();
+  }, [navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setIsLoading(true); // Ativa o estado de loading
+
+    if (!navigator.onLine) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Sem conexão',
+        text: 'Você precisa estar online para fazer login.',
+      });
+      return;
+    }
+
+    setIsLoading(true);
 
     try {
       const response = await fetch('https://sarara-be.vercel.app/api/users/login', {
@@ -24,7 +59,6 @@ const Login = ({ onLogin }) => {
       const data = await response.json();
 
       if (!response.ok) {
-        // Tratamento de erros específicos
         if (response.status === 401) {
           Swal.fire({
             icon: 'warning',
@@ -58,8 +92,9 @@ const Login = ({ onLogin }) => {
         return;
       }
 
-      // Salva o token no localStorage e atualiza o estado de autenticação
+      // Salva o token no localStorage e no IndexedDB
       localStorage.setItem('authToken', accessToken);
+      await saveToken(accessToken); // Armazena o token no IndexedDB
       onLogin(accessToken);
 
       Swal.fire({
@@ -77,7 +112,7 @@ const Login = ({ onLogin }) => {
         text: 'Por favor, tente novamente mais tarde.',
       });
     } finally {
-      setIsLoading(false); // Desativa o estado de loading
+      setIsLoading(false);
     }
   };
 
@@ -97,7 +132,7 @@ const Login = ({ onLogin }) => {
               placeholder="Email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              disabled={isLoading} // Desabilita o campo durante o loading
+              disabled={isLoading}
             />
           </div>
           <div>
@@ -111,13 +146,13 @@ const Login = ({ onLogin }) => {
               placeholder="Senha"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              disabled={isLoading} // Desabilita o campo durante o loading
+              disabled={isLoading}
             />
           </div>
           <button
             type="submit"
             className="w-full py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            disabled={isLoading} // Desabilita o botão durante o loading
+            disabled={isLoading}
           >
             {isLoading ? 'Carregando...' : 'Entrar'}
           </button>
