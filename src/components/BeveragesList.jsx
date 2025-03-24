@@ -1,8 +1,8 @@
 "use client"
 
 import { useState, useCallback, useMemo } from "react"
-import IngredientCard from "./IngredientCard"
-import EditIngredientCard from "./EditIngredientCard"
+import BeverageCard from "./BeverageCard"
+import EditBeverageCard from "./EditBeverageCard"
 import ErrorBoundary from "./ErrorBoundary"
 import Pagination from "./Pagination"
 import { FaSearch, FaSync } from "react-icons/fa"
@@ -10,16 +10,17 @@ import Swal from "sweetalert2"
 import { useOfflineData } from "../hooks/useOfflineData"
 import { useOffline } from "../context/OfflineContext"
 
-const IngredientsList = () => {
+const BeveragesList = () => {
   const {
-    data: ingredients,
+    data: beverages,
     loading: isLoading,
     error,
-    refresh: fetchIngredients,
-    update: updateIngredient,
-    remove: deleteIngredient,
-  } = useOfflineData("ingredients")
-  const [editingIngredient, setEditingIngredient] = useState(null)
+    refresh: fetchBeverages,
+    update: updateBeverage,
+    remove: deleteBeverage,
+  } = useOfflineData("beverages")
+  
+  const [editingBeverage, setEditingBeverage] = useState(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [searchTerm, setSearchTerm] = useState("")
   const { online } = useOffline()
@@ -35,9 +36,9 @@ const IngredientsList = () => {
     Swal.fire("Erro", message, "error")
   }, [])
 
-  const handleEditIngredient = (ingredient) => setEditingIngredient(ingredient)
+  const handleEditBeverage = (beverage) => setEditingBeverage(beverage)
 
-  const handleDeleteIngredient = useCallback(
+  const handleDeleteBeverage = useCallback(
     async (id) => {
       try {
         Swal.fire({
@@ -51,42 +52,42 @@ const IngredientsList = () => {
           cancelButtonText: "Cancelar",
         }).then(async (result) => {
           if (result.isConfirmed) {
-            await deleteIngredient(id)
-            Swal.fire("Deletado!", "O ingrediente foi removido com sucesso.", "success")
+            await deleteBeverage(id)
+            Swal.fire("Deletado!", "A bebida foi removida com sucesso.", "success")
           }
         })
       } catch (error) {
-        handleError(error, "Erro ao deletar o ingrediente.")
+        handleError(error, "Erro ao deletar a bebida.")
       }
     },
-    [deleteIngredient, handleError],
+    [deleteBeverage, handleError],
   )
 
-  const handleSaveIngredient = useCallback(
-    async (updatedIngredient) => {
+  const handleSaveBeverage = useCallback(
+    async (updatedBeverage) => {
       try {
-        await updateIngredient(updatedIngredient._id, updatedIngredient)
-        setEditingIngredient(null)
-        Swal.fire("Salvo!", "O ingrediente foi atualizado com sucesso.", "success")
+        await updateBeverage(updatedBeverage._id, updatedBeverage)
+        setEditingBeverage(null)
+        Swal.fire("Salvo!", "A bebida foi atualizada com sucesso.", "success")
       } catch (error) {
-        handleError(error, "Erro ao salvar o ingrediente.")
+        handleError(error, "Erro ao salvar a bebida.")
       }
     },
-    [updateIngredient, handleError],
+    [updateBeverage, handleError],
   )
 
-  const filteredIngredients = useMemo(() => {
-    return ingredients.filter(
-      (i) =>
-        i.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        i.category.toLowerCase().includes(searchTerm.toLowerCase()),
+  const filteredBeverages = useMemo(() => {
+    return beverages.filter(
+      (b) =>
+        b.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        b.category.toLowerCase().includes(searchTerm.toLowerCase()),
     )
-  }, [ingredients, searchTerm])
+  }, [beverages, searchTerm])
 
-  const currentIngredients = useMemo(() => {
+  const currentBeverages = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage
-    return filteredIngredients.slice(start, start + itemsPerPage)
-  }, [filteredIngredients, currentPage])
+    return filteredBeverages.slice(start, start + itemsPerPage)
+  }, [filteredBeverages, currentPage])
 
   if (isLoading && !error) {
     return (
@@ -99,12 +100,12 @@ const IngredientsList = () => {
   return (
     <ErrorBoundary>
       <div className="p-4 bg-background min-h-screen">
-        <h1 className="text-3xl mb-6 text-center text-text">Lista de Ingredientes</h1>
+        <h1 className="text-3xl mb-6 text-center text-text">Lista de Bebidas</h1>
         {error && (
           <div className="text-error text-center mb-4 p-4 bg-background-light rounded-lg border border-error">
             <p>{error}</p>
             <button
-              onClick={fetchIngredients}
+              onClick={fetchBeverages}
               className="mt-2 px-4 py-2 bg-primary text-text rounded hover:bg-primary-light transition-colors flex items-center justify-center"
             >
               <FaSync className="mr-2" /> Tentar Novamente
@@ -114,38 +115,38 @@ const IngredientsList = () => {
         <div className="mb-4 relative">
           <input
             type="text"
-            placeholder="Buscar ingredientes..."
+            placeholder="Buscar bebidas..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full px-4 py-2 pl-10 bg-background-light border border-primary rounded-md text-text focus:outline-none focus:ring-2 focus:ring-secondary"
           />
           <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-text-dark" />
         </div>
-        {currentIngredients.length > 0 ? (
+        {currentBeverages.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {currentIngredients.map((ingredient) => (
-              <IngredientCard
-                key={ingredient._id}
-                ingredient={ingredient}
-                onEditIngredient={handleEditIngredient}
-                onDeleteIngredient={handleDeleteIngredient}
-                isOfflineItem={ingredient._id.startsWith("temp_")}
+            {currentBeverages.map((beverage) => (
+              <BeverageCard
+                key={beverage._id}
+                beverage={beverage}
+                onEditBeverage={handleEditBeverage}
+                onDeleteBeverage={handleDeleteBeverage}
+                isOfflineItem={beverage._id.startsWith("temp_")}
               />
             ))}
           </div>
         ) : (
-          <p className="text-center text-text-dark">Nenhum ingrediente encontrado.</p>
+          <p className="text-center text-text-dark">Nenhuma bebida encontrada.</p>
         )}
         <Pagination
           currentPage={currentPage}
-          totalPages={Math.ceil(filteredIngredients.length / itemsPerPage)}
+          totalPages={Math.ceil(filteredBeverages.length / itemsPerPage)}
           onPageChange={setCurrentPage}
         />
-        {editingIngredient && (
-          <EditIngredientCard
-            ingredient={editingIngredient}
-            onSave={handleSaveIngredient}
-            onCancel={() => setEditingIngredient(null)}
+        {editingBeverage && (
+          <EditBeverageCard
+            beverage={editingBeverage}
+            onSave={handleSaveBeverage}
+            onCancel={() => setEditingBeverage(null)}
           />
         )}
       </div>
@@ -153,5 +154,4 @@ const IngredientsList = () => {
   )
 }
 
-export default IngredientsList
-
+export default BeveragesList 
