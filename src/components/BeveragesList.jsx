@@ -19,7 +19,7 @@ const BeveragesList = () => {
     update: updateBeverage,
     remove: deleteBeverage,
   } = useOfflineData("beverages")
-  
+
   const [editingBeverage, setEditingBeverage] = useState(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [searchTerm, setSearchTerm] = useState("")
@@ -154,4 +154,5 @@ const BeveragesList = () => {
   )
 }
 
-export default BeveragesList 
+export default BeveragesList
+
