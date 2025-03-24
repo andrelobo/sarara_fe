@@ -6,9 +6,13 @@ import EditBeverageCard from "./EditBeverageCard"
 import ErrorBoundary from "./ErrorBoundary"
 import Pagination from "./Pagination"
 import { FaSearch, FaSync } from "react-icons/fa"
-import Swal from "sweetalert2"
+import { toast } from "react-hot-toast" // Substituindo SweetAlert2
 import { useOfflineData } from "../hooks/useOfflineData"
-import { useOffline } from "../context/OfflineContext"
+// Remover esta linha:
+// import { useOffline } from "../context/OfflineContext"
+
+// Constantes movidas para fora do componente para evitar recriação
+const ITEMS_PER_PAGE = 9
 
 const BeveragesList = () => {
   const {
@@ -23,8 +27,8 @@ const BeveragesList = () => {
   const [editingBeverage, setEditingBeverage] = useState(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [searchTerm, setSearchTerm] = useState("")
-  const { online } = useOffline()
-  const itemsPerPage = 9
+  // E remover esta linha:
+  // const { online } = useOffline()
 
   const handleError = useCallback((error, defaultMessage) => {
     console.error("Erro:", error)
@@ -33,29 +37,22 @@ const BeveragesList = () => {
         ? "Não foi possível conectar ao servidor. Verifique sua conexão de internet."
         : defaultMessage || "Ocorreu um erro. Por favor, tente novamente."
 
-    Swal.fire("Erro", message, "error")
+    toast.error(message)
   }, [])
 
-  const handleEditBeverage = (beverage) => setEditingBeverage(beverage)
+  const handleEditBeverage = useCallback((beverage) => {
+    setEditingBeverage(beverage)
+  }, [])
 
   const handleDeleteBeverage = useCallback(
     async (id) => {
       try {
-        Swal.fire({
-          title: "Tem certeza?",
-          text: "Você não poderá desfazer essa ação!",
-          icon: "warning",
-          showCancelButton: true,
-          confirmButtonColor: "#d33",
-          cancelButtonColor: "#3085d6",
-          confirmButtonText: "Sim, deletar!",
-          cancelButtonText: "Cancelar",
-        }).then(async (result) => {
-          if (result.isConfirmed) {
-            await deleteBeverage(id)
-            Swal.fire("Deletado!", "A bebida foi removida com sucesso.", "success")
-          }
-        })
+        const confirmed = window.confirm("Tem certeza que deseja deletar esta bebida? Esta ação não pode ser desfeita.")
+
+        if (confirmed) {
+          await deleteBeverage(id)
+          toast.success("Bebida removida com sucesso")
+        }
       } catch (error) {
         handleError(error, "Erro ao deletar a bebida.")
       }
@@ -68,7 +65,7 @@ const BeveragesList = () => {
       try {
         await updateBeverage(updatedBeverage._id, updatedBeverage)
         setEditingBeverage(null)
-        Swal.fire("Salvo!", "A bebida foi atualizada com sucesso.", "success")
+        toast.success("Bebida atualizada com sucesso")
       } catch (error) {
         handleError(error, "Erro ao salvar a bebida.")
       }
@@ -76,23 +73,29 @@ const BeveragesList = () => {
     [updateBeverage, handleError],
   )
 
+  // Memoizando a filtragem para evitar recálculos desnecessários
   const filteredBeverages = useMemo(() => {
+    if (!searchTerm.trim()) return beverages
+
+    const searchTermLower = searchTerm.toLowerCase()
     return beverages.filter(
-      (b) =>
-        b.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        b.category.toLowerCase().includes(searchTerm.toLowerCase()),
+      (b) => b.name.toLowerCase().includes(searchTermLower) || b.category.toLowerCase().includes(searchTermLower),
     )
   }, [beverages, searchTerm])
 
+  // Memoizando a paginação para evitar recálculos desnecessários
   const currentBeverages = useMemo(() => {
-    const start = (currentPage - 1) * itemsPerPage
-    return filteredBeverages.slice(start, start + itemsPerPage)
+    const start = (currentPage - 1) * ITEMS_PER_PAGE
+    return filteredBeverages.slice(start, start + ITEMS_PER_PAGE)
   }, [filteredBeverages, currentPage])
+
+  // Memoizando o total de páginas
+  const totalPages = useMemo(() => Math.ceil(filteredBeverages.length / ITEMS_PER_PAGE), [filteredBeverages.length])
 
   if (isLoading && !error) {
     return (
-      <div className="flex justify-center items-center h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-primary"></div>
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
       </div>
     )
   }
@@ -137,11 +140,9 @@ const BeveragesList = () => {
         ) : (
           <p className="text-center text-text-dark">Nenhuma bebida encontrada.</p>
         )}
-        <Pagination
-          currentPage={currentPage}
-          totalPages={Math.ceil(filteredBeverages.length / itemsPerPage)}
-          onPageChange={setCurrentPage}
-        />
+        {totalPages > 1 && (
+          <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+        )}
         {editingBeverage && (
           <EditBeverageCard
             beverage={editingBeverage}

@@ -2,7 +2,7 @@
 
 import React, { useCallback } from "react"
 import PropTypes from "prop-types"
-import { FaEdit, FaTrash, FaHistory, FaCloudUpload } from "react-icons/fa"
+import { FaEdit, FaTrash, FaHistory, FaWifi } from "react-icons/fa" // Substituído FaCloudUpload por FaWifi
 import Swal from "sweetalert2"
 import "sweetalert2/src/sweetalert2.scss"
 
@@ -35,7 +35,7 @@ const BeverageCard = ({ beverage, onEditBeverage, onDeleteBeverage, onViewHistor
           <h2 className="text-xl text-text text-center flex-grow">{name}</h2>
           {isOfflineItem && (
             <span className="bg-yellow-500 text-xs text-black px-2 py-1 rounded-full flex items-center">
-              <FaCloudUpload className="mr-1" /> Offline
+              <FaWifi className="mr-1" /> Offline
             </span>
           )}
         </div>

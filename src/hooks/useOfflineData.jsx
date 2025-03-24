@@ -1,19 +1,45 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { useOffline } from "../context/OfflineContext"
-import * as db from "../services/db"
-import { addToSyncQueue } from "../services/db"
-import Swal from "sweetalert2"
+import { toast } from "react-hot-toast" // Substituindo SweetAlert2 por uma alternativa mais leve
+
+// Criamos um worker compartilhado
+const createWorker = () => {
+  return new Worker(new URL("../workers/dbWorker.js", import.meta.url), { type: "module" })
+}
+
+// Singleton para o worker
+let workerInstance = null
+
+const getWorker = () => {
+  if (!workerInstance) {
+    workerInstance = createWorker()
+  }
+  return workerInstance
+}
 
 export function useOfflineData(entityType) {
   const [data, setData] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const { online } = useOffline()
+  const worker = useRef(getWorker())
 
-  const storeName = entityType === "beverages" ? "beverages" : "ingredients"
   const apiEndpoint = entityType === "beverages" ? "beverages" : "ingredients"
+
+  // Função para comunicar com o worker
+  const workerRequest = useCallback((action, data = null) => {
+    return new Promise((resolve) => {
+      const messageHandler = (e) => {
+        worker.current.removeEventListener("message", messageHandler)
+        resolve(e.data)
+      }
+
+      worker.current.addEventListener("message", messageHandler)
+      worker.current.postMessage({ action, data })
+    })
+  }, [])
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -36,21 +62,26 @@ export function useOfflineData(entityType) {
 
         const serverData = await response.json()
 
-        // Atualizar o IndexedDB com os dados do servidor
+        // Atualizar o IndexedDB com os dados do servidor (via worker)
         for (const item of serverData) {
           if (entityType === "beverages") {
-            await db.saveBeverage(item)
+            await workerRequest("saveBeverage", item)
           } else {
-            await db.saveIngredient(item)
+            await workerRequest("saveIngredient", item)
           }
         }
 
         setData(serverData)
       } else {
-        // Se estiver offline, buscar do IndexedDB
-        const localData = entityType === "beverages" ? await db.getAllBeverages() : await db.getAllIngredients()
+        // Se estiver offline, buscar do IndexedDB via worker
+        const result =
+          entityType === "beverages" ? await workerRequest("getAllBeverages") : await workerRequest("getAllIngredients")
 
-        setData(localData)
+        if (result.error) {
+          throw new Error(result.error)
+        }
+
+        setData(result.data || [])
       }
     } catch (error) {
       console.error(`Erro ao buscar ${entityType}:`, error)
@@ -58,16 +89,18 @@ export function useOfflineData(entityType) {
 
       // Em caso de erro, tentar buscar do IndexedDB
       try {
-        const localData = entityType === "beverages" ? await db.getAllBeverages() : await db.getAllIngredients()
+        const result =
+          entityType === "beverages" ? await workerRequest("getAllBeverages") : await workerRequest("getAllIngredients")
 
+        if (result.error) {
+          throw new Error(result.error)
+        }
+
+        const localData = result.data || []
         setData(localData)
 
         if (localData.length > 0) {
-          Swal.fire({
-            title: "Usando dados offline",
-            text: "Não foi possível conectar ao servidor. Exibindo dados salvos localmente.",
-            icon: "info",
-          })
+          toast.info("Usando dados offline. Não foi possível conectar ao servidor.")
         }
       } catch (dbError) {
         console.error("Erro ao buscar dados locais:", dbError)
@@ -75,7 +108,7 @@ export function useOfflineData(entityType) {
     } finally {
       setLoading(false)
     }
-  }, [entityType, online, apiEndpoint])
+  }, [entityType, online, apiEndpoint, workerRequest])
 
   useEffect(() => {
     fetchData()
@@ -105,25 +138,25 @@ export function useOfflineData(entityType) {
 
           const savedItem = await response.json()
 
-          // Salvar no IndexedDB
+          // Salvar no IndexedDB via worker
           if (entityType === "beverages") {
-            await db.saveBeverage(savedItem)
+            await workerRequest("saveBeverage", savedItem)
           } else {
-            await db.saveIngredient(savedItem)
+            await workerRequest("saveIngredient", savedItem)
           }
 
           setData((prev) => [...prev, savedItem])
           return savedItem
         } else {
-          // Se estiver offline, salvar localmente e adicionar à fila de sincronização
+          // Se estiver offline, salvar localmente via worker
           if (entityType === "beverages") {
-            await db.saveBeverage(tempItem)
+            await workerRequest("saveBeverage", tempItem)
           } else {
-            await db.saveIngredient(tempItem)
+            await workerRequest("saveIngredient", tempItem)
           }
 
-          // Adicionar à fila de sincronização
-          await addToSyncQueue({
+          // Adicionar à fila de sincronização via worker
+          await workerRequest("addToSyncQueue", {
             type: "create",
             entity: apiEndpoint,
             data: item,
@@ -131,13 +164,7 @@ export function useOfflineData(entityType) {
           })
 
           setData((prev) => [...prev, tempItem])
-
-          Swal.fire({
-            title: "Salvo offline",
-            text: "Este item será sincronizado quando você estiver online.",
-            icon: "info",
-          })
-
+          toast.success("Salvo offline. Será sincronizado quando você estiver online.")
           return tempItem
         }
       } catch (error) {
@@ -145,7 +172,7 @@ export function useOfflineData(entityType) {
         throw error
       }
     },
-    [entityType, online, apiEndpoint],
+    [entityType, online, apiEndpoint, workerRequest],
   )
 
   const updateItem = useCallback(
@@ -171,18 +198,19 @@ export function useOfflineData(entityType) {
 
           const updatedItem = await response.json()
 
-          // Atualizar no IndexedDB
+          // Atualizar no IndexedDB via worker
           if (entityType === "beverages") {
-            await db.saveBeverage(updatedItem)
+            await workerRequest("saveBeverage", updatedItem)
           } else {
-            await db.saveIngredient(updatedItem)
+            await workerRequest("saveIngredient", updatedItem)
           }
 
           setData((prev) => prev.map((item) => (item._id === id ? updatedItem : item)))
           return updatedItem
         } else {
           // Se estiver offline ou for um item temporário
-          const currentItem = entityType === "beverages" ? await db.getBeverage(id) : await db.getIngredient(id)
+          // Buscar item atual do estado para evitar operação de IndexedDB
+          const currentItem = data.find((item) => item._id === id)
 
           if (!currentItem) {
             throw new Error("Item não encontrado")
@@ -190,16 +218,16 @@ export function useOfflineData(entityType) {
 
           const updatedItem = { ...currentItem, ...updates }
 
-          // Atualizar no IndexedDB
+          // Atualizar no IndexedDB via worker
           if (entityType === "beverages") {
-            await db.saveBeverage(updatedItem)
+            await workerRequest("saveBeverage", updatedItem)
           } else {
-            await db.saveIngredient(updatedItem)
+            await workerRequest("saveIngredient", updatedItem)
           }
 
           // Adicionar à fila de sincronização se não for um item temporário
           if (!isTemp) {
-            await addToSyncQueue({
+            await workerRequest("addToSyncQueue", {
               type: "update",
               entity: apiEndpoint,
               entityId: id,
@@ -211,11 +239,7 @@ export function useOfflineData(entityType) {
           setData((prev) => prev.map((item) => (item._id === id ? updatedItem : item)))
 
           if (!online) {
-            Swal.fire({
-              title: "Atualizado offline",
-              text: "Esta atualização será sincronizada quando você estiver online.",
-              icon: "info",
-            })
+            toast.success("Atualizado offline. Será sincronizado quando você estiver online.")
           }
 
           return updatedItem
@@ -225,7 +249,7 @@ export function useOfflineData(entityType) {
         throw error
       }
     },
-    [entityType, online, apiEndpoint],
+    [entityType, online, apiEndpoint, workerRequest, data],
   )
 
   const deleteItem = useCallback(
@@ -249,7 +273,7 @@ export function useOfflineData(entityType) {
           }
         } else if (!isTemp) {
           // Se estiver offline e não for um item temporário, adicionar à fila de sincronização
-          await addToSyncQueue({
+          await workerRequest("addToSyncQueue", {
             type: "delete",
             entity: apiEndpoint,
             entityId: id,
@@ -257,19 +281,15 @@ export function useOfflineData(entityType) {
           })
 
           if (!online) {
-            Swal.fire({
-              title: "Deletado offline",
-              text: "Esta exclusão será sincronizada quando você estiver online.",
-              icon: "info",
-            })
+            toast.success("Deletado offline. Será sincronizado quando você estiver online.")
           }
         }
 
-        // Sempre deletar do IndexedDB
+        // Sempre deletar do IndexedDB via worker
         if (entityType === "beverages") {
-          await db.deleteBeverage(id)
+          await workerRequest("deleteBeverage", id)
         } else {
-          await db.deleteIngredient(id)
+          await workerRequest("deleteIngredient", id)
         }
 
         setData((prev) => prev.filter((item) => item._id !== id))
@@ -279,8 +299,16 @@ export function useOfflineData(entityType) {
         throw error
       }
     },
-    [entityType, online, apiEndpoint],
+    [entityType, online, apiEndpoint, workerRequest],
   )
+
+  // Limpar o worker quando o componente for desmontado
+  useEffect(() => {
+    return () => {
+      // Não terminamos o worker aqui porque ele é compartilhado
+      // Se necessário, podemos implementar um contador de referência
+    }
+  }, [])
 
   return {
     data,
