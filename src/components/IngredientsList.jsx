@@ -5,9 +5,9 @@ import ErrorBoundary from "./ErrorBoundary";
 import Pagination from "./Pagination";
 import { FaSearch, FaSync } from "react-icons/fa";
 import Swal from "sweetalert2";
-import { saveData, saveSyncQueue, getSyncQueue, clearSyncQueue } from "../utils/db"; // Funções do IndexedDB
-
-const API_BASE_URL = "https://sarara-be.vercel.app/api";
+import { saveData, saveSyncQueue, getSyncQueue, clearSyncQueue, getAllData } from "../utils/db";
+import { API_BASE_URL } from "../config/api";
+import { getStoredUser, hasRole } from "../utils/auth";
 
 const IngredientsList = () => {
   const [ingredients, setIngredients] = useState([]);
@@ -17,6 +17,8 @@ const IngredientsList = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
   const itemsPerPage = 9;
+  const currentUser = getStoredUser();
+  const canManageInventory = hasRole(currentUser, ["admin", "manager"]);
 
   const token = localStorage.getItem("authToken");
   const headers = useMemo(
@@ -216,6 +218,7 @@ const IngredientsList = () => {
                 ingredient={ingredient}
                 onEditIngredient={handleEditIngredient}
                 onDeleteIngredient={handleDeleteIngredient}
+                canManage={canManageInventory}
               />
             ))}
           </div>
@@ -227,7 +230,7 @@ const IngredientsList = () => {
           totalPages={Math.ceil(filteredIngredients.length / itemsPerPage)}
           onPageChange={setCurrentPage}
         />
-        {editingIngredient && (
+        {editingIngredient && canManageInventory && (
           <EditIngredientCard
             ingredient={editingIngredient}
             onSave={handleSaveIngredient}

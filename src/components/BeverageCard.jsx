@@ -6,8 +6,9 @@ import { FaEdit, FaTrash, FaHistory, FaWifi } from "react-icons/fa" // Substitu�
 import Swal from "sweetalert2"
 import "sweetalert2/src/sweetalert2.scss"
 
-const BeverageCard = ({ beverage, onEditBeverage, onDeleteBeverage, onViewHistory, isOfflineItem }) => {
+const BeverageCard = ({ beverage, onEditBeverage, onDeleteBeverage, onViewHistory, isOfflineItem, canManage }) => {
   const { name, category, quantity, unit, _id } = beverage
+  const canViewHistory = typeof onViewHistory === "function" && !isOfflineItem
 
   const handleDelete = useCallback(() => {
     Swal.fire({
@@ -49,28 +50,33 @@ const BeverageCard = ({ beverage, onEditBeverage, onDeleteBeverage, onViewHistor
         </div>
 
         <div className="flex justify-around space-x-2">
-          <button
-            onClick={() => onEditBeverage(beverage)}
-            className="bg-secondary hover:bg-secondary-light text-background px-3 py-1 rounded-md text-sm transition duration-200 flex items-center"
-            aria-label="Editar bebida"
-          >
-            <FaEdit className="mr-1" /> Editar
-          </button>
-          <button
-            onClick={handleDelete}
-            className="bg-error hover:bg-error-light text-text px-3 py-1 rounded-md text-sm transition duration-200 flex items-center"
-            aria-label="Deletar bebida"
-          >
-            <FaTrash className="mr-1" /> Deletar
-          </button>
-          <button
-            onClick={() => onViewHistory(beverage)}
-            className={`bg-primary-light hover:bg-primary text-text px-3 py-1 rounded-md text-sm transition duration-200 flex items-center ${isOfflineItem ? "opacity-50 cursor-not-allowed" : ""}`}
-            aria-label="Ver histórico da bebida"
-            disabled={isOfflineItem}
-          >
-            <FaHistory className="mr-1" /> Histórico
-          </button>
+          {canManage && (
+            <>
+              <button
+                onClick={() => onEditBeverage(beverage)}
+                className="bg-secondary hover:bg-secondary-light text-background px-3 py-1 rounded-md text-sm transition duration-200 flex items-center"
+                aria-label="Editar bebida"
+              >
+                <FaEdit className="mr-1" /> Editar
+              </button>
+              <button
+                onClick={handleDelete}
+                className="bg-error hover:bg-error-light text-text px-3 py-1 rounded-md text-sm transition duration-200 flex items-center"
+                aria-label="Deletar bebida"
+              >
+                <FaTrash className="mr-1" /> Deletar
+              </button>
+            </>
+          )}
+          {canViewHistory && (
+            <button
+              onClick={() => onViewHistory(beverage)}
+              className="bg-primary-light hover:bg-primary text-text px-3 py-1 rounded-md text-sm transition duration-200 flex items-center"
+              aria-label="Ver histórico da bebida"
+            >
+              <FaHistory className="mr-1" /> Histórico
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -87,13 +93,15 @@ BeverageCard.propTypes = {
   }).isRequired,
   onEditBeverage: PropTypes.func.isRequired,
   onDeleteBeverage: PropTypes.func.isRequired,
-  onViewHistory: PropTypes.func.isRequired,
+  onViewHistory: PropTypes.func,
   isOfflineItem: PropTypes.bool,
+  canManage: PropTypes.bool,
 }
 
 BeverageCard.defaultProps = {
   isOfflineItem: false,
+  onViewHistory: undefined,
+  canManage: false,
 }
 
 export default React.memo(BeverageCard)
-

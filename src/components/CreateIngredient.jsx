@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { saveData, saveSyncQueue } from '../utils/db'; // Funções do IndexedDB
 import Swal from 'sweetalert2';
 import 'sweetalert2/src/sweetalert2.scss';
+import { API_BASE_URL } from '../config/api';
+import { getAuthHeaders } from '../utils/auth';
 
 const CreateIngredient = () => {
   const [ingredient, setIngredient] = useState({
@@ -31,9 +33,9 @@ const CreateIngredient = () => {
     try {
       if (navigator.onLine) {
         // Se online, envia diretamente para o backend
-        const response = await fetch('https://sarara-be.vercel.app/api/ingredients', {
+        const response = await fetch(`${API_BASE_URL}/ingredients`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify(newIngredient),
         });
 

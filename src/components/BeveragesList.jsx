@@ -8,10 +8,8 @@ import Pagination from "./Pagination"
 import { FaSearch, FaSync } from "react-icons/fa"
 import { toast } from "react-hot-toast" // Substituindo SweetAlert2
 import { useOfflineData } from "../hooks/useOfflineData"
-// Remover esta linha:
-// import { useOffline } from "../context/OfflineContext"
+import { getStoredUser, hasRole } from "../utils/auth"
 
-// Constantes movidas para fora do componente para evitar recriação
 const ITEMS_PER_PAGE = 9
 
 const BeveragesList = () => {
@@ -23,12 +21,12 @@ const BeveragesList = () => {
     update: updateBeverage,
     remove: deleteBeverage,
   } = useOfflineData("beverages")
+  const currentUser = getStoredUser()
+  const canManageInventory = hasRole(currentUser, ["admin", "manager"])
 
   const [editingBeverage, setEditingBeverage] = useState(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [searchTerm, setSearchTerm] = useState("")
-  // E remover esta linha:
-  // const { online } = useOffline()
 
   const handleError = useCallback((error, defaultMessage) => {
     console.error("Erro:", error)
@@ -133,6 +131,7 @@ const BeveragesList = () => {
                 beverage={beverage}
                 onEditBeverage={handleEditBeverage}
                 onDeleteBeverage={handleDeleteBeverage}
+                canManage={canManageInventory}
                 isOfflineItem={beverage._id.startsWith("temp_")}
               />
             ))}
@@ -143,7 +142,7 @@ const BeveragesList = () => {
         {totalPages > 1 && (
           <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
         )}
-        {editingBeverage && (
+        {editingBeverage && canManageInventory && (
           <EditBeverageCard
             beverage={editingBeverage}
             onSave={handleSaveBeverage}
@@ -156,4 +155,3 @@ const BeveragesList = () => {
 }
 
 export default BeveragesList
-

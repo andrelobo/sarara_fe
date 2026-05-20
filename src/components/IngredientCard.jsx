@@ -4,7 +4,7 @@ import { FaEdit, FaTrash } from "react-icons/fa";
 import Swal from "sweetalert2";
 import "sweetalert2/src/sweetalert2.scss";
 
-const IngredientCard = ({ ingredient, onEditIngredient, onDeleteIngredient }) => {
+const IngredientCard = ({ ingredient, onEditIngredient, onDeleteIngredient, canManage }) => {
   const { name, category, quantity, unit, _id } = ingredient;
 
   const handleDelete = useCallback(() => {
@@ -46,20 +46,24 @@ const IngredientCard = ({ ingredient, onEditIngredient, onDeleteIngredient }) =>
         </div>
 
         <div className="flex justify-around space-x-2">
-          <button
-            onClick={() => onEditIngredient(ingredient)}
-            className="bg-secondary hover:bg-secondary-light text-background px-3 py-1 rounded-md text-sm transition duration-200 flex items-center"
-            aria-label="Editar ingrediente"
-          >
-            <FaEdit className="mr-1" /> Editar
-          </button>
-          <button
-            onClick={handleDelete}
-            className="bg-error hover:bg-error-light text-text px-3 py-1 rounded-md text-sm transition duration-200 flex items-center"
-            aria-label="Deletar ingrediente"
-          >
-            <FaTrash className="mr-1" /> Deletar
-          </button>
+          {canManage && (
+            <>
+              <button
+                onClick={() => onEditIngredient(ingredient)}
+                className="bg-secondary hover:bg-secondary-light text-background px-3 py-1 rounded-md text-sm transition duration-200 flex items-center"
+                aria-label="Editar ingrediente"
+              >
+                <FaEdit className="mr-1" /> Editar
+              </button>
+              <button
+                onClick={handleDelete}
+                className="bg-error hover:bg-error-light text-text px-3 py-1 rounded-md text-sm transition duration-200 flex items-center"
+                aria-label="Deletar ingrediente"
+              >
+                <FaTrash className="mr-1" /> Deletar
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -76,6 +80,11 @@ IngredientCard.propTypes = {
   }).isRequired,
   onEditIngredient: PropTypes.func.isRequired,
   onDeleteIngredient: PropTypes.func.isRequired,
+  canManage: PropTypes.bool,
+};
+
+IngredientCard.defaultProps = {
+  canManage: false,
 };
 
 export default React.memo(IngredientCard);

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
-import { saveToken, getToken, isTokenValid } from '../utils/db'; // Importe as funções do IndexedDB
+import { saveToken, getToken } from '../utils/db';
+import { API_BASE_URL } from '../config/api';
 
 const Login = ({ onLogin }) => {
   const [email, setEmail] = useState('');
@@ -9,12 +10,11 @@ const Login = ({ onLogin }) => {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
-  // Verifica se o usuário está offline e tem um token válido
   useEffect(() => {
     const checkOfflineAccess = async () => {
       if (!navigator.onLine) {
         const token = await getToken();
-        if (token && isTokenValid(token)) {
+        if (token) {
           Swal.fire({
             icon: 'info',
             title: 'Modo Offline',
@@ -48,7 +48,7 @@ const Login = ({ onLogin }) => {
     setIsLoading(true);
 
     try {
-      const response = await fetch('https://sarara-be.vercel.app/api/users/login', {
+      const response = await fetch(`${API_BASE_URL}/users/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -65,23 +65,23 @@ const Login = ({ onLogin }) => {
             title: 'Credenciais incorretas',
             text: 'Por favor, verifique seu email e senha.',
           });
-        } else if (response.status === 404) {
+        } else if (response.status === 403) {
           Swal.fire({
-            icon: 'error',
-            title: 'Usuário não encontrado',
-            text: 'O usuário registrado não existe.',
+            icon: 'warning',
+            title: 'Acesso bloqueado',
+            text: data.error || data.message || 'Sua conta ainda nao esta liberada para uso.',
           });
         } else {
           Swal.fire({
             icon: 'error',
             title: 'Erro ao fazer login',
-            text: data.message || 'Por favor, tente novamente.',
+            text: data.error || data.message || 'Por favor, tente novamente.',
           });
         }
         return;
       }
 
-      const { accessToken } = data;
+      const { accessToken, user } = data;
 
       if (!accessToken) {
         Swal.fire({
@@ -92,10 +92,8 @@ const Login = ({ onLogin }) => {
         return;
       }
 
-      // Salva o token no localStorage e no IndexedDB
-      localStorage.setItem('authToken', accessToken);
-      await saveToken(accessToken); // Armazena o token no IndexedDB
-      onLogin(accessToken);
+      await saveToken(accessToken);
+      onLogin(accessToken, user);
 
       Swal.fire({
         icon: 'success',
@@ -103,7 +101,6 @@ const Login = ({ onLogin }) => {
         text: 'Bem-vindo de volta!',
         confirmButtonText: 'Ok',
       }).then(() => navigate('/beverages'));
-
     } catch (error) {
       console.error('Erro de rede:', error);
       Swal.fire({

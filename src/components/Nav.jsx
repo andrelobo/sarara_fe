@@ -1,16 +1,14 @@
 import { useState, useEffect } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { FaHome, FaGlassMartiniAlt, FaCarrot, FaSignInAlt, FaUserPlus, FaChartLine, FaSignOutAlt, FaBars, FaTimes, FaWifi, FaBan } from 'react-icons/fa';
+import { Link, useLocation } from 'react-router-dom';
+import { FaHome, FaGlassMartiniAlt, FaCarrot, FaSignInAlt, FaUsers, FaChartLine, FaSignOutAlt, FaBars, FaTimes, FaWifi, FaBan } from 'react-icons/fa';
 import logo from '../assets/sarara-logo.png';
 
-const Nav = () => {
+const Nav = ({ isAuthenticated, currentUser, onLogout }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [isOnline, setIsOnline] = useState(navigator.onLine); // Estado para verificar a conexão
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
   const location = useLocation();
-  const navigate = useNavigate();
-  const token = localStorage.getItem('token');
+  const isAdmin = currentUser?.role === 'admin';
 
-  // Verifica o status da conexão
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
@@ -24,25 +22,19 @@ const Nav = () => {
     };
   }, []);
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    navigate('/login');
-  };
+  const navItems = isAuthenticated
+    ? [
+        { path: '/', name: 'Home', icon: <FaHome /> },
+        { path: '/beverages', name: 'Bebidas', icon: <FaGlassMartiniAlt /> },
+        { path: '/ingredients', name: 'Ingredientes', icon: <FaCarrot /> },
+        { path: '/beverages/history', name: 'Histórico', icon: <FaChartLine /> },
+        ...(isAdmin ? [{ path: '/usuarios', name: 'Usuários', icon: <FaUsers /> }] : []),
+      ]
+    : [];
 
-  const navItems = [
-    { path: '/', name: 'Home', icon: <FaHome /> },
-    { path: '/beverages', name: 'Bebidas', icon: <FaGlassMartiniAlt /> },
-    { path: '/ingredients', name: 'Ingredientes', icon: <FaCarrot /> },
-    { path: '/beverages/history', name: 'Histórico de Bebidas', icon: <FaChartLine /> },
-    { path: '/ingredients/history', name: 'Histórico de Ingredientes', icon: <FaChartLine /> },
-  ];
-
-  const authItems = token
-    ? [{ name: 'Logout', icon: <FaSignOutAlt />, onClick: handleLogout }]
-    : [
-        { path: '/login', name: 'Login', icon: <FaSignInAlt /> },
-        { path: '/cadastro', name: 'Cadastro', icon: <FaUserPlus /> },
-      ];
+  const authItems = isAuthenticated
+    ? [{ name: 'Logout', icon: <FaSignOutAlt />, onClick: onLogout }]
+    : [{ path: '/login', name: 'Login', icon: <FaSignInAlt /> }];
 
   const toggleMenu = () => setIsOpen(!isOpen);
 
@@ -72,6 +64,11 @@ const Nav = () => {
                     </span>
                   </Link>
                 ))}
+                {isAuthenticated && currentUser && (
+                  <span className="rounded-full border border-primary px-3 py-2 text-xs font-medium text-text-dark">
+                    {currentUser.username} • {currentUser.role}
+                  </span>
+                )}
                 {authItems.map((item, index) =>
                   item.path ? (
                     <Link
@@ -91,7 +88,7 @@ const Nav = () => {
                   ) : (
                     <button
                       key={index}
-                      onClick={item.onClick}
+                      onClick={() => item.onClick?.()}
                       className="px-3 py-2 rounded-md text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white"
                     >
                       <span className="flex items-center">
@@ -163,9 +160,9 @@ const Nav = () => {
             ) : (
               <button
                 key={index}
-                onClick={() => {
+                onClick={async () => {
                   toggleMenu();
-                  item.onClick();
+                  await item.onClick?.();
                 }}
                 className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-300 hover:bg-gray-700 hover:text-white"
               >

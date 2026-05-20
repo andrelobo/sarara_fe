@@ -30,7 +30,9 @@ Routes currently wired in `src/App.jsx`:
 
 - `/`
 - `/login`
+- `/setup-account`
 - `/cadastro`
+- `/usuarios`
 - `/beverages`
 - `/beverages/new`
 - `/beverages/history`
@@ -39,19 +41,22 @@ Routes currently wired in `src/App.jsx`:
 
 ## Backend Contract
 
-- Main backend URL is hardcoded in the frontend: `https://sarara-be.vercel.app/api`
+- Main backend URL now flows through `src/config/api.js`
+- Default backend URL is `https://sarara-be.vercel.app/api`
+- Optional override is `VITE_API_BASE_URL`
 - Login, beverage CRUD, ingredient CRUD, sync, and graph/history requests mostly target that production backend directly
-- This project does not currently centralize the API base URL in env config
 
 ## Auth Model
 
 - App auth state is driven mainly by `localStorage.getItem("authToken")`
+- The current user is also stored in `localStorage` as `authUser`
 - Login also persists the token into IndexedDB for offline access
-- There is inconsistent token handling in the codebase:
-  - `App.jsx` uses `authToken`
-  - `Login.jsx` writes `authToken`
-  - `Nav.jsx` reads and clears `token`
-- Treat auth storage as inconsistent until unified
+- `src/utils/auth.js` is now the session helper used by the live app shell
+- The live route guard in `src/App.jsx` loads `/api/users/me` to validate the stored session
+- Role handling now follows the backend contract:
+  - `admin`: user management plus full inventory access
+  - `manager`: inventory write access
+  - `waiter`: read-only inventory access
 
 ## Offline-First Pieces
 
@@ -64,7 +69,9 @@ Routes currently wired in `src/App.jsx`:
 
 ## Main Functional Areas
 
-- Login and signup forms
+- Login form
+- Link-based account activation form
+- Admin user management area
 - Beverage list, create flow, edit flow, delete flow
 - Ingredient list, create flow, edit flow, delete flow
 - Beverage history view
@@ -80,16 +87,16 @@ Routes currently wired in `src/App.jsx`:
 
 - `src/App.jsx` is the canonical route map right now. There is a separate `src/routes/Routes.jsx`, but it is not used by the live app shell.
 - The codebase contains older/stale pages and chart files that are not all wired into the active route tree.
+- `src/components/Cadastro.jsx` is now a legacy component and is no longer used by the live route tree.
 - The public folder contains `barchef.webp` and `barchef512.webp`, while PWA config references `pwa-icon-192.png` and `pwa-icon-512.png`. Future PWA work should verify icon availability explicitly.
 
 ## Known Risks In Code
 
-- High: signup in `src/components/Cadastro.jsx` posts to `http://localhost:7778/api/users` instead of the production backend URL used by the rest of the app. This is a likely production bug unless a local proxy is expected.
-- High: `src/components/Nav.jsx` uses localStorage key `token`, while the rest of the app uses `authToken`. Logout and auth visibility can desync.
 - Medium: offline logic is split across two different storage/sync stacks:
   - `src/utils/db.js` + worker-based flow
   - `src/services/db.js` + `src/services/syncService.js`
-- Medium: `src/components/IngredientsList.jsx` references `getAllData('ingredients')` in offline mode, but that helper is not imported in the file.
+- Medium: the frontend now depends on the new backend RBAC/onboarding contract; if only one side is deployed, admin/setup flows will fail
+- Medium: the waiter role is hidden from edit/delete/create UI in the active shell, but older unused components still exist in the repo
 - Medium: several frontend history/chart callers use endpoint shapes that do not clearly match the backend implementation for beverage history.
 
 ## Local Development
@@ -101,4 +108,8 @@ Routes currently wired in `src/App.jsx`:
 ## Validation Notes
 
 - Live production URL responded on 2026-05-20
-- Local `yarn build` could not be completed in this workspace snapshot because Vite was not installed locally yet (`vite: not found`). That means deploy availability is confirmed, but local build reproducibility is still unverified on this machine
+- Local `yarn build` completed successfully on 2026-05-20 after dependency installation
+- Build emitted non-blocking warnings from Vite/Sass:
+  - `splitVendorChunk` has no effect with the current manual chunk config
+  - SweetAlert2 SCSS still uses deprecated Sass `@import`
+  - Browserslist data is stale and can be refreshed later

@@ -1,7 +1,7 @@
 "use client"
 
-import React, { useEffect } from "react"
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom"
+import React, { useEffect, useState } from "react"
+import { BrowserRouter as Router, Navigate, Route, Routes } from "react-router-dom"
 import { OfflineProvider } from "./context/OfflineContext"
 import Nav from "./components/Nav"
 import BeveragesList from "./components/BeveragesList"
@@ -10,50 +10,222 @@ import BeverageHistory from "./components/BeverageHistory"
 import CreateBeverage from "./components/CreateBeverage"
 import CreateIngredient from "./components/CreateIngredient"
 import Login from "./components/Login"
-import Cadastro from "./components/Cadastro"
+import ProtectedRoute from "./components/ProtectedRoute"
+import SetupAccount from "./components/SetupAccount"
+import UserManagement from "./components/UserManagement"
 import OfflineIndicator from "./components/OfflineIndicator"
 import SyncManager from "./components/SyncManager"
 import ServiceWorkerRegistration from "./components/ServiceWorkerRegistration"
+import { API_BASE_URL } from "./config/api"
 import { initDB } from "./utils/db"
+import { clearAuthSession, getAuthHeaders, getAuthToken, getStoredUser, setAuthSession, storeAuthUser } from "./utils/auth"
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = React.useState(!!localStorage.getItem("authToken"))
+  const [authToken, setAuthToken] = useState(() => getAuthToken())
+  const [currentUser, setCurrentUser] = useState(() => getStoredUser())
+  const [isAuthLoading, setIsAuthLoading] = useState(() => Boolean(getAuthToken()))
 
   useEffect(() => {
-    // Inicializar o banco de dados IndexedDB quando o aplicativo carregar
     initDB().catch((error) => {
       console.error("Erro ao inicializar o banco de dados:", error)
     })
   }, [])
 
-  const handleLogin = (token) => {
-    localStorage.setItem("authToken", token)
-    setIsAuthenticated(true)
+  useEffect(() => {
+    if (!authToken) {
+      setCurrentUser(null)
+      setIsAuthLoading(false)
+      return
+    }
+
+    let isCancelled = false
+
+    const syncCurrentUser = async () => {
+      setIsAuthLoading(true)
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/users/me`, {
+          headers: getAuthHeaders({
+            "Content-Type": "application/json",
+          }),
+        })
+
+        if (!response.ok) {
+          throw new Error(`Falha ao validar sessao: ${response.status}`)
+        }
+
+        const data = await response.json()
+
+        if (isCancelled) {
+          return
+        }
+
+        storeAuthUser(data.user)
+        setCurrentUser(data.user)
+      } catch (error) {
+        console.error("Erro ao sincronizar sessao:", error)
+        clearAuthSession()
+
+        if (!isCancelled) {
+          setAuthToken("")
+          setCurrentUser(null)
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsAuthLoading(false)
+        }
+      }
+    }
+
+    syncCurrentUser()
+
+    return () => {
+      isCancelled = true
+    }
+  }, [authToken])
+
+  const handleLogin = (token, user) => {
+    setAuthSession(token, user)
+    setAuthToken(token)
+    setCurrentUser(user || null)
+    setIsAuthLoading(false)
   }
 
-  const handleLogout = () => {
-    localStorage.removeItem("authToken")
-    setIsAuthenticated(false)
+  const handleLogout = async () => {
+    try {
+      if (authToken) {
+        await fetch(`${API_BASE_URL}/users/logout`, {
+          method: "POST",
+          headers: getAuthHeaders({
+            "Content-Type": "application/json",
+          }),
+        })
+      }
+    } catch (error) {
+      console.error("Erro ao encerrar sessao:", error)
+    } finally {
+      clearAuthSession()
+      setAuthToken("")
+      setCurrentUser(null)
+      setIsAuthLoading(false)
+    }
   }
+
+  const isAuthenticated = Boolean(authToken)
 
   return (
     <OfflineProvider>
       <Router>
         <div className="min-h-screen bg-background">
-          <Nav isAuthenticated={isAuthenticated} onLogout={handleLogout} />
+          <Nav isAuthenticated={isAuthenticated} currentUser={currentUser} onLogout={handleLogout} />
           <OfflineIndicator />
           <SyncManager />
           <ServiceWorkerRegistration />
           <div className="container mx-auto px-4 py-8">
             <Routes>
-              <Route path="/" element={isAuthenticated ? <BeveragesList /> : <Login onLogin={handleLogin} />} />
-              <Route path="/login" element={<Login onLogin={handleLogin} />} />
-              <Route path="/cadastro" element={<Cadastro onCadastro={handleLogin} />} />
-              <Route path="/beverages" element={<BeveragesList />} />
-              <Route path="/beverages/new" element={<CreateBeverage />} />
-              <Route path="/beverages/history" element={<BeverageHistory />} />
-              <Route path="/ingredients" element={<IngredientsList />} />
-              <Route path="/ingredients/new" element={<CreateIngredient />} />
+              <Route path="/" element={<Navigate to={isAuthenticated ? "/beverages" : "/login"} replace />} />
+              <Route
+                path="/login"
+                element={isAuthenticated ? <Navigate to="/beverages" replace /> : <Login onLogin={handleLogin} />}
+              />
+              <Route
+                path="/setup-account"
+                element={
+                  isAuthenticated ? (
+                    <Navigate to="/beverages" replace />
+                  ) : (
+                    <SetupAccount onSetupSuccess={handleLogin} />
+                  )
+                }
+              />
+              <Route
+                path="/cadastro"
+                element={
+                  <ProtectedRoute
+                    isAuthenticated={isAuthenticated}
+                    isLoading={isAuthLoading}
+                    currentUser={currentUser}
+                    allowedRoles={["admin"]}
+                  >
+                    <UserManagement />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/usuarios"
+                element={
+                  <ProtectedRoute
+                    isAuthenticated={isAuthenticated}
+                    isLoading={isAuthLoading}
+                    currentUser={currentUser}
+                    allowedRoles={["admin"]}
+                  >
+                    <UserManagement />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/beverages"
+                element={
+                  <ProtectedRoute
+                    isAuthenticated={isAuthenticated}
+                    isLoading={isAuthLoading}
+                    currentUser={currentUser}
+                  >
+                    <BeveragesList />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/beverages/new"
+                element={
+                  <ProtectedRoute
+                    isAuthenticated={isAuthenticated}
+                    isLoading={isAuthLoading}
+                    currentUser={currentUser}
+                    allowedRoles={["admin", "manager"]}
+                  >
+                    <CreateBeverage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/beverages/history"
+                element={
+                  <ProtectedRoute
+                    isAuthenticated={isAuthenticated}
+                    isLoading={isAuthLoading}
+                    currentUser={currentUser}
+                  >
+                    <BeverageHistory />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/ingredients"
+                element={
+                  <ProtectedRoute
+                    isAuthenticated={isAuthenticated}
+                    isLoading={isAuthLoading}
+                    currentUser={currentUser}
+                  >
+                    <IngredientsList />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/ingredients/new"
+                element={
+                  <ProtectedRoute
+                    isAuthenticated={isAuthenticated}
+                    isLoading={isAuthLoading}
+                    currentUser={currentUser}
+                    allowedRoles={["admin", "manager"]}
+                  >
+                    <CreateIngredient />
+                  </ProtectedRoute>
+                }
+              />
             </Routes>
           </div>
         </div>
@@ -63,4 +235,3 @@ function App() {
 }
 
 export default App
-
