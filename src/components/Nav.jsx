@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { FaHome, FaGlassMartiniAlt, FaCarrot, FaSignInAlt, FaUsers, FaChartLine, FaSignOutAlt, FaBars, FaTimes, FaWifi, FaBan } from 'react-icons/fa';
+import { FaHome, FaGlassMartiniAlt, FaCarrot, FaSignInAlt, FaUsers, FaChartLine, FaSignOutAlt, FaBars, FaTimes, FaWifi, FaBan, FaConciergeBell } from 'react-icons/fa';
 import logo from '../assets/sarara-logo.png';
 
 const Nav = ({ isAuthenticated, currentUser, onLogout }) => {
@@ -8,6 +8,13 @@ const Nav = ({ isAuthenticated, currentUser, onLogout }) => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const location = useLocation();
   const isAdmin = currentUser?.role === 'admin';
+  const isItemActive = (path) => {
+    if (path === '/') {
+      return location.pathname === '/';
+    }
+
+    return location.pathname === path || location.pathname.startsWith(`${path}/`);
+  };
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -25,6 +32,7 @@ const Nav = ({ isAuthenticated, currentUser, onLogout }) => {
   const navItems = isAuthenticated
     ? [
         { path: '/', name: 'Home', icon: <FaHome /> },
+        { path: '/salon', name: 'Salon', icon: <FaConciergeBell /> },
         { path: '/beverages', name: 'Bebidas', icon: <FaGlassMartiniAlt /> },
         { path: '/ingredients', name: 'Ingredientes', icon: <FaCarrot /> },
         { path: '/beverages/history', name: 'Histórico', icon: <FaChartLine /> },
@@ -53,7 +61,7 @@ const Nav = ({ isAuthenticated, currentUser, onLogout }) => {
                     key={item.path}
                     to={item.path}
                     className={`px-3 py-2 rounded-md text-sm font-medium ${
-                      location.pathname === item.path
+                      isItemActive(item.path)
                         ? 'bg-gray-800 text-[#f8b431]'
                         : 'text-gray-300 hover:bg-gray-700 hover:text-white'
                     }`}
@@ -75,7 +83,7 @@ const Nav = ({ isAuthenticated, currentUser, onLogout }) => {
                       key={index}
                       to={item.path}
                       className={`px-3 py-2 rounded-md text-sm font-medium ${
-                        location.pathname === item.path
+                        isItemActive(item.path)
                           ? 'bg-gray-800 text-[#f8b431]'
                           : 'text-gray-300 hover:bg-gray-700 hover:text-white'
                       }`}
@@ -132,7 +140,7 @@ const Nav = ({ isAuthenticated, currentUser, onLogout }) => {
               key={item.path}
               to={item.path}
               className={`block px-3 py-2 rounded-md text-base font-medium ${
-                location.pathname === item.path
+                isItemActive(item.path)
                   ? 'bg-gray-800 text-[#f8b431]'
                   : 'text-gray-300 hover:bg-gray-700 hover:text-white'
               }`}

@@ -16,6 +16,10 @@ import UserManagement from "./components/UserManagement"
 import OfflineIndicator from "./components/OfflineIndicator"
 import SyncManager from "./components/SyncManager"
 import ServiceWorkerRegistration from "./components/ServiceWorkerRegistration"
+import SalonDashboard from "./components/SalonDashboard"
+import TablesGrid from "./components/TablesGrid"
+import TableDetail from "./components/TableDetail"
+import CommandView from "./components/CommandView"
 import { API_BASE_URL } from "./config/api"
 import { initDB } from "./utils/db"
 import { clearAuthSession, getAuthHeaders, getAuthToken, getStoredUser, setAuthSession, storeAuthUser } from "./utils/auth"
@@ -223,6 +227,58 @@ function App() {
                     allowedRoles={["admin", "manager"]}
                   >
                     <CreateIngredient />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/salon"
+                element={
+                  <ProtectedRoute
+                    isAuthenticated={isAuthenticated}
+                    isLoading={isAuthLoading}
+                    currentUser={currentUser}
+                    allowedRoles={["admin", "manager", "waiter"]}
+                  >
+                    <SalonDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/salon/tables"
+                element={
+                  <ProtectedRoute
+                    isAuthenticated={isAuthenticated}
+                    isLoading={isAuthLoading}
+                    currentUser={currentUser}
+                    allowedRoles={["admin", "manager", "waiter"]}
+                  >
+                    <TablesGrid />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/salon/tables/:id"
+                element={
+                  <ProtectedRoute
+                    isAuthenticated={isAuthenticated}
+                    isLoading={isAuthLoading}
+                    currentUser={currentUser}
+                    allowedRoles={["admin", "manager", "waiter"]}
+                  >
+                    <TableDetail />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/salon/commands/:id"
+                element={
+                  <ProtectedRoute
+                    isAuthenticated={isAuthenticated}
+                    isLoading={isAuthLoading}
+                    currentUser={currentUser}
+                    allowedRoles={["admin", "manager", "waiter"]}
+                  >
+                    <CommandView />
                   </ProtectedRoute>
                 }
               />
