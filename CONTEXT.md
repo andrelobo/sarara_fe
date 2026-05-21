@@ -11,6 +11,7 @@ Last updated: 2026-05-21
 - Production base URL: `https://barchef-sarara.vercel.app`
 - Production availability verified on 2026-05-20:
   - root URL returned HTTP `200`
+- Operational deployment workflow in practice: pushes to `origin/main` on GitHub trigger the connected automatic deploys.
 - Canonical brand name: `BarChef`
 - Canonical brand system now separates:
   - mark/icon: `src/components/brand/BarChefMark.jsx`
@@ -95,6 +96,7 @@ Routes currently wired in `src/App.jsx`:
 - Login form
 - Link-based account activation form
 - Admin user management area
+- Admin onboarding card with immediate activation-link display plus copy action
 - Beverage list, create flow, edit flow, delete flow
 - Ingredient list, create flow, edit flow, delete flow
 - Beverage history view
@@ -132,6 +134,7 @@ Routes currently wired in `src/App.jsx`:
 - `src/App.jsx` is the canonical route map right now. There is a separate `src/routes/Routes.jsx`, but it is not used by the live app shell.
 - The codebase contains older/stale pages and chart files that are not all wired into the active route tree.
 - `src/components/Cadastro.jsx` is now a legacy component and is no longer used by the live route tree.
+- `src/components/UserManagement.jsx` already supports the intended admin flow: create with `invite` or `password`, render the latest activation link in the UI, and copy that link without leaving the app.
 - `src/components/SalonDashboard.jsx`, `TablesGrid.jsx`, `TableDetail.jsx`, `CommandView.jsx`, `TableCard.jsx`, and `AddCommandItemModal.jsx` now form the first live Salon shell.
 - `AddCommandItemModal.jsx` now fetches beverages from the backend when opened and lets the operator select an existing inventory beverage while keeping price entry manual.
 - `CommandView.jsx` now warns the operator that beverage-linked items deduct stock when the command is closed.
