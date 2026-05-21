@@ -1,36 +1,66 @@
 module.exports = {
-  content: [
-    "./src/**/*.{js,jsx,ts,tsx}",
-  ],
+  content: ["./src/**/*.{js,jsx,ts,tsx}"],
   theme: {
     extend: {
       colors: {
+        brand: {
+          green: '#0E2A24',
+          gold: '#E6B450',
+          cream: '#F2F2F2',
+          sand: '#CDAF7D',
+          black: '#1C1C1C',
+        },
         primary: {
-          DEFAULT: '#15508c',
-          light: '#1a6cb8',
-          dark: '#0f3a66',
+          DEFAULT: '#E6B450',
+          light: '#F0C56A',
+          dark: '#B8892F',
         },
         secondary: {
-          DEFAULT: '#c69f56',
-          light: '#d4b77d',
-          dark: '#a88743',
+          DEFAULT: '#CDAF7D',
+          light: '#E3CAA2',
+          dark: '#9C7F56',
         },
         background: {
-          DEFAULT: '#111827',
-          light: '#1f2937',
+          DEFAULT: '#0E2A24',
+          light: '#15362F',
+          dark: '#081A16',
+        },
+        surface: {
+          DEFAULT: '#1C1C1C',
+          soft: '#232323',
+          elevated: '#202722',
         },
         text: {
-          DEFAULT: '#e5e7eb',
-          dark: '#9ca3af',
+          DEFAULT: '#F2F2F2',
+          dark: '#CDAF7D',
+          muted: '#D7CFBF',
+        },
+        border: {
+          DEFAULT: 'rgba(242, 242, 242, 0.12)',
+          strong: 'rgba(230, 180, 80, 0.28)',
         },
         error: {
-          DEFAULT: '#ef4444',
-          light: '#f87171',
+          DEFAULT: '#B94132',
+          light: '#D45D4E',
         },
         success: {
-          DEFAULT: '#22c55e',
-          light: '#4ade80',
+          DEFAULT: '#2E8B57',
+          light: '#48A86F',
         },
+        status: {
+          free: '#2E8B57',
+          occupied: '#E6B450',
+          closing: '#C97A2B',
+          danger: '#B94132',
+          offline: '#7C3AED',
+          sync: '#2563EB',
+        },
+      },
+      fontFamily: {
+        logo: ['"Playfair Display"', 'Georgia', 'serif'],
+        heading: ['"Playfair Display"', 'Georgia', 'serif'],
+        body: ['Inter', 'system-ui', 'sans-serif'],
+        ui: ['Manrope', 'Inter', 'system-ui', 'sans-serif'],
       },
       animation: {
         'fade-in': 'fadeIn 0.3s ease-out',
@@ -46,8 +76,10 @@ module.exports = {
           '100%': { transform: 'translateY(0)', opacity: '1' },
         },
       },
+      boxShadow: {
+        ambient: '0 25px 80px rgba(8, 26, 22, 0.35)',
+      },
     },
   },
   plugins: [],
 }
-

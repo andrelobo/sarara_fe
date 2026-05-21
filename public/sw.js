@@ -1,18 +1,14 @@
-// Nome do cache
-const CACHE_NAME = "sarara-cache-v1"
+const CACHE_NAME = "barchef-cache-v2"
 
-// Arquivos para armazenar em cache
 const urlsToCache = [
   "/",
   "/index.html",
   "/manifest.json",
-  "/favicon.ico",
-  "/pwa-icon-192.png",
-  "/pwa-icon-512.png",
-  "/assets/sarara-logo.png",
+  "/barchef-mark.svg",
+  "/barchef.webp",
+  "/barchef512.webp",
 ]
 
-// Instalar o service worker
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
@@ -22,7 +18,6 @@ self.addEventListener("install", (event) => {
   )
 })
 
-// Ativar o service worker
 self.addEventListener("activate", (event) => {
   const cacheWhitelist = [CACHE_NAME]
   event.waitUntil(
@@ -38,9 +33,7 @@ self.addEventListener("activate", (event) => {
   )
 })
 
-// Estratégia de cache: Network First, fallback para cache
 self.addEventListener("fetch", (event) => {
-  // Ignorar requisições de API
   if (event.request.url.includes("/api/")) {
     return
   }
@@ -48,63 +41,50 @@ self.addEventListener("fetch", (event) => {
   event.respondWith(
     fetch(event.request)
       .then((response) => {
-        // Verificar se a resposta é válida
         if (!response || response.status !== 200 || response.type !== "basic") {
           return response
         }
 
-        // Clonar a resposta
         const responseToCache = response.clone()
 
-        // Armazenar em cache
         caches.open(CACHE_NAME).then((cache) => {
           cache.put(event.request, responseToCache)
         })
 
         return response
       })
-      .catch(() => {
-        // Se falhar, tentar buscar do cache
-        return caches.match(event.request)
-      }),
+      .catch(() => caches.match(event.request)),
   )
 })
 
-// Lidar com mensagens
 self.addEventListener("message", (event) => {
   if (event.data && event.data.type === "SKIP_WAITING") {
     self.skipWaiting()
   }
 })
 
-// Sincronização em segundo plano
 self.addEventListener("sync", (event) => {
   if (event.tag === "sync-data") {
     event.waitUntil(syncData())
   }
 })
 
-// Função para sincronizar dados
 async function syncData() {
   try {
-    // Aqui você pode implementar a lógica para sincronizar dados
-    // Esta função seria chamada quando a conexão for restaurada
     console.log("Sincronizando dados em segundo plano")
 
-    // Exemplo: enviar uma mensagem para o cliente
     self.clients.matchAll().then((clients) => {
       clients.forEach((client) => {
         client.postMessage({
           type: "SYNC_COMPLETED",
-          message: "Sincronização em segundo plano concluída",
+          message: "Sincronizacao em segundo plano concluida",
         })
       })
     })
 
     return true
   } catch (error) {
-    console.error("Erro na sincronização em segundo plano:", error)
+    console.error("Erro na sincronizacao em segundo plano:", error)
     return false
   }
 }
-

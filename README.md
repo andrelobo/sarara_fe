@@ -2,7 +2,7 @@
 
 ## Overview
 
-Frontend web do BarChef para login, operacao de estoque, administracao de usuarios e a primeira camada do Salon.
+Frontend web do BarChef para login, operacao de estoque, administracao de usuarios e a camada Salon.
 
 ## Stack
 
@@ -12,6 +12,19 @@ Frontend web do BarChef para login, operacao de estoque, administracao de usuari
 - SweetAlert2
 - React Hot Toast
 - IndexedDB para suporte offline
+
+## Brand System
+
+- Marca canonicamente separada em:
+  - `src/components/brand/BarChefMark.jsx`
+  - `src/components/brand/BarChefWordmark.jsx`
+  - `src/components/brand/BarChefLogo.jsx`
+- Tema da marca centralizado em `src/brand/barchefTheme.js`
+- Asset vetorial publico para favicon e PWA: `public/barchef-mark.svg`
+- Fontes visuais da marca:
+  - logo e heading: `Playfair Display`
+  - corpo: `Inter`
+  - UI: `Manrope`
 
 ## Main Routes
 
@@ -63,6 +76,7 @@ yarn build
 - Sessao local usa `authToken` e `authUser` no `localStorage`.
 - O token tambem e salvo no IndexedDB para suporte offline.
 - A ativacao de conta por link usa `/setup-account?token=...`.
+- O shell principal do app ja usa a nova identidade BarChef em `Nav`, `Login`, `SetupAccount` e `SalonDashboard`.
 - O cadastro publico antigo deixou de ser o fluxo principal; novos usuarios devem ser criados pelo admin.
 - O Salon ja possui dashboard, grade de mesas, detalhe de mesa e detalhe de comanda.
 - O detalhe de mesa e o detalhe de comanda ja exibem a linha do tempo de auditoria registrada pelo backend.

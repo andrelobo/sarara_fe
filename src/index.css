@@ -1,26 +1,58 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&family=Playfair+Display:wght@600;700;800&display=swap");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-
 :root {
-  --background: #111827; /* Azul escuro */
-  --foreground: #C0C0C0;
-  --primary: #1E90FF;
-  --primary-foreground: #FFFFFF;
-  --muted: #333333;
-  --muted-foreground: #666666;
-  --border: #444444;
+  --background: #0e2a24;
+  --foreground: #f2f2f2;
+  --primary: #e6b450;
+  --secondary: #cdaf7d;
+  --muted: #cdaf7d;
+  --border: rgba(242, 242, 242, 0.12);
 }
 
-body {
-  background-color: var(--background);
-  color: var(--foreground);
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply min-h-screen bg-background text-text font-body antialiased;
+    background-image:
+      radial-gradient(circle at top left, rgba(230, 180, 80, 0.14), transparent 26%),
+      radial-gradient(circle at bottom right, rgba(205, 175, 125, 0.12), transparent 24%),
+      linear-gradient(160deg, #0e2a24 0%, #102e27 38%, #1c1c1c 100%);
+  }
+
+  #root {
+    min-height: 100vh;
+  }
+
+  * {
+    scrollbar-color: rgba(230, 180, 80, 0.55) rgba(255, 255, 255, 0.08);
+  }
+
+  ::selection {
+    background: rgba(230, 180, 80, 0.28);
+    color: #f2f2f2;
+  }
+
+  input,
+  button,
+  textarea,
+  select {
+    font: inherit;
+  }
 }
 
+.app-shell {
+  position: relative;
+}
 
 @media (max-width: 640px) {
-    .recharts-wrapper {
-      font-size: 0.75rem; /* Font size for mobile devices */
-    }
+  .recharts-wrapper {
+    font-size: 0.75rem;
   }
+}

@@ -1,0 +1,26 @@
+<svg width="256" height="256" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="brand-fill" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(100 72) rotate(90) scale(110)">
+      <stop stop-color="#173A32" />
+      <stop offset="0.68" stop-color="#0E2A24" />
+      <stop offset="1" stop-color="#081A16" />
+    </radialGradient>
+  </defs>
+  <circle cx="100" cy="100" r="93" fill="rgba(8, 26, 22, 0.7)" />
+  <circle cx="100" cy="100" r="90" fill="url(#brand-fill)" stroke="#E6B450" stroke-width="5" />
+  <circle cx="100" cy="100" r="78" stroke="rgba(230, 180, 80, 0.12)" stroke-width="1.5" />
+  <text x="42" y="108" fill="#E6B450" font-family="Manrope, sans-serif" font-size="16" font-weight="700" letter-spacing="2.6" text-anchor="middle">EST.</text>
+  <text x="156" y="108" fill="#E6B450" font-family="Manrope, sans-serif" font-size="16" font-weight="700" letter-spacing="2.6" text-anchor="middle">2024</text>
+  <g stroke="#E6B450" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M78 73c0-14 10-24 22-24 8 0 15 4 20 11 4-7 11-11 19-11 14 0 24 11 24 25 0 12-9 22-20 22-6 0-11-2-15-6" />
+    <path d="M77 73c0-14 11-24 25-24" />
+    <path d="M84 73c0-14-10-24-24-24-14 0-24 11-24 25 0 12 9 22 20 22 7 0 13-3 17-8" />
+    <path d="M75 97v34c0 0 13 6 34 6 21 0 32-6 32-6V97" />
+    <path d="M105 116h16" />
+  </g>
+  <g fill="#E6B450">
+    <path d="M69 146c8 0 17 5 23 12l-13 9c-4 3-10 0-10-5z" />
+    <path d="M131 146c-8 0-17 5-23 12l13 9c4 3 10 0 10-5z" />
+    <rect x="92" y="151" width="16" height="16" rx="6" />
+  </g>
+</svg>

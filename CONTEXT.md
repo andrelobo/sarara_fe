@@ -11,6 +11,13 @@ Last updated: 2026-05-21
 - Production base URL: `https://barchef-sarara.vercel.app`
 - Production availability verified on 2026-05-20:
   - root URL returned HTTP `200`
+- Canonical brand name: `BarChef`
+- Canonical brand system now separates:
+  - mark/icon: `src/components/brand/BarChefMark.jsx`
+  - wordmark/tagline: `src/components/brand/BarChefWordmark.jsx`
+  - composed lockup: `src/components/brand/BarChefLogo.jsx`
+- Public optimized brand asset for metadata/PWA: `public/barchef-mark.svg`
+- Canonical frontend brand tokens now live in `src/brand/barchefTheme.js`
 
 ## Git State
 
@@ -81,6 +88,7 @@ Routes currently wired in `src/App.jsx`:
 - Offline context provider in `src/context/OfflineContext.jsx`
 - Sync UI in `src/components/SyncManager.jsx`
 - PWA registration in `src/main.jsx`
+- Legacy manual service worker file still exists in `public/sw.js`, but metadata/cache references are now aligned to `barchef-mark.svg`, `barchef.webp`, and `barchef512.webp`
 
 ## Main Functional Areas
 
@@ -103,6 +111,16 @@ Routes currently wired in `src/App.jsx`:
   - command close fails if inventory is insufficient
 - Offline cache plus deferred sync queue for inventory
 
+## Brand and Layout Notes
+
+- The old raster import `src/assets/sarara-logo.png` is now legacy and no longer needed by the main shell
+- `Nav.jsx` uses the separated brand system with mark + wordmark in a compact horizontal lockup
+- `Login.jsx` uses the full BarChef lockup and the new deep rebrand shell
+- `SetupAccount.jsx` now uses the new brand system and no longer references `Sarara BarChef`
+- `SalonDashboard.jsx` now follows the same brand direction and copy with the current stock-on-close behavior
+- `tailwind.config.js` and `src/index.css` now reflect the BarChef palette and the `Playfair Display` + `Inter` + `Manrope` font stack
+- `index.html`, `vite.config.js`, and `public/manifest.json` now use the BarChef mark and corrected theme colors
+
 ## Build and Deploy
 
 - Build command in `package.json`: `yarn build`
@@ -119,7 +137,7 @@ Routes currently wired in `src/App.jsx`:
 - `CommandView.jsx` now warns the operator that beverage-linked items deduct stock when the command is closed.
 - `AuditTimeline.jsx` now renders backend `auditTrail` data in table and command detail pages.
 - Salon currently talks to the backend in online mode only. The offline queue/store still covers inventory flows, not tables or commands.
-- The public folder contains `barchef.webp` and `barchef512.webp`, while PWA config references `pwa-icon-192.png` and `pwa-icon-512.png`. Future PWA work should verify icon availability explicitly.
+- PWA metadata and manifest now reference real frontend assets instead of missing `pwa-icon-192.png` and `pwa-icon-512.png` placeholders.
 
 ## Known Risks In Code
 
@@ -129,8 +147,8 @@ Routes currently wired in `src/App.jsx`:
 - Medium: Salon is now available in the live shell, but tables and commands still have no IndexedDB persistence or retry queue integration.
 - Medium: command items can now link to beverages and deduct stock on close, but price remains manual and there is still no offline conflict handling for this rule.
 - Medium: audit trails are now visible in the live shell, but there is still no filtering, pagination, or dedicated admin/reporting view for these histories.
-- Medium: the frontend now depends on the new backend RBAC/onboarding contract; if only one side is deployed, admin/setup flows will fail
-- Medium: the waiter role is hidden from edit/delete/create UI in the inventory shell, but older unused components still exist in the repo
+- Medium: the frontend now depends on the new backend RBAC/onboarding contract; if only one side is deployed, admin/setup flows will fail.
+- Medium: fonts are currently loaded from Google Fonts in `src/index.css`; if the product needs stricter offline branding fidelity later, the next step is self-hosting the font files.
 - Medium: several frontend history/chart callers use endpoint shapes that do not clearly match the backend implementation for beverage history.
 
 ## Local Development
@@ -144,6 +162,7 @@ Routes currently wired in `src/App.jsx`:
 - Live production URL responded on 2026-05-20
 - Local `yarn build` completed successfully on 2026-05-20 after dependency installation
 - Local `yarn build` also completed successfully on 2026-05-21 after the first Salon routes/components were added
+- Local `yarn build` also completed successfully on 2026-05-21 after the deep BarChef rebrand pass
 - Build emitted non-blocking warnings from Vite/Sass:
   - `splitVendorChunk` has no effect with the current manual chunk config
   - SweetAlert2 SCSS still uses deprecated Sass `@import`

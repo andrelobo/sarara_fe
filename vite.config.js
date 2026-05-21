@@ -3,50 +3,51 @@ import react from '@vitejs/plugin-react';
 import { splitVendorChunkPlugin } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
-// https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
     react(),
-    splitVendorChunkPlugin(), // Dividir dependências em chunks separados
+    splitVendorChunkPlugin(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'robots.txt', 'apple-touch-icon.png'],
+      includeAssets: ['barchef-mark.svg', 'robots.txt', 'barchef.webp', 'barchef512.webp'],
       manifest: {
         name: 'BarChef',
         short_name: 'BarChef',
-        description: 'App para gerenciamento de bebidas e ingredientes',
-        theme_color: '#b9e091',
-        background_color: '#040404',
+        description: 'Gestao inteligente para bares e restaurantes.',
+        theme_color: '#0E2A24',
+        background_color: '#0E2A24',
         display: 'standalone',
         start_url: '/',
         icons: [
           {
-            src: '/pwa-icon-192.png',
+            src: '/barchef.webp',
             sizes: '192x192',
-            type: 'image/png',
+            type: 'image/webp',
+            purpose: 'any maskable',
           },
           {
-            src: '/pwa-icon-512.png',
+            src: '/barchef512.webp',
             sizes: '512x512',
-            type: 'image/png',
+            type: 'image/webp',
+            purpose: 'any maskable',
           },
         ],
       },
     }),
   ],
   build: {
-    target: 'es2015', // Melhor suporte para navegadores modernos
-    minify: 'esbuild', // Usa o esbuild para minificar, mais eficiente
-    cssCodeSplit: true, // Divide o CSS em arquivos menores
+    target: 'es2015',
+    minify: 'esbuild',
+    cssCodeSplit: true,
     rollupOptions: {
       output: {
         manualChunks: {
-          vendor: ['react', 'react-dom'], // Separar React em um chunk dedicado
+          vendor: ['react', 'react-dom'],
         },
       },
     },
   },
   server: {
-    compress: true, // Habilitar compressão durante o desenvolvimento
+    compress: true,
   },
 });
