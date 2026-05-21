@@ -2,13 +2,12 @@
 
 import React, { useEffect, useState } from "react"
 import { BrowserRouter as Router, Navigate, Route, Routes } from "react-router-dom"
-import Nav from "./components/Nav"
+import AppShell from "./components/ui/AppShell"
 import OfflineIndicator from "./components/OfflineIndicator"
 import SyncManager from "./components/SyncManager"
 import ServiceWorkerRegistration from "./components/ServiceWorkerRegistration"
 import BeveragesList from "./components/BeveragesList"
 import IngredientsList from "./components/IngredientsList"
-import BeverageHistory from "./components/BeverageHistory"
 import CreateBeverage from "./components/CreateBeverage"
 import CreateIngredient from "./components/CreateIngredient"
 import Login from "./components/Login"
@@ -19,6 +18,8 @@ import SalonDashboard from "./components/SalonDashboard"
 import TablesGrid from "./components/TablesGrid"
 import TableDetail from "./components/TableDetail"
 import CommandView from "./components/CommandView"
+import HomeDashboard from "./components/HomeDashboard"
+import BeverageHistoryPage from "./pages/BeverageHistoryPage"
 import { OfflineProvider } from "./context/OfflineContext"
 import { API_BASE_URL } from "./config/api"
 import { initDB } from "./utils/db"
@@ -122,176 +123,123 @@ function App() {
       <Router>
         <div className="app-shell min-h-screen bg-background text-text">
           <div className="pointer-events-none fixed inset-0 overflow-hidden">
-            <div className="absolute left-[-9rem] top-[-9rem] h-72 w-72 rounded-full bg-primary/12 blur-3xl" />
-            <div className="absolute bottom-[-10rem] right-[-6rem] h-80 w-80 rounded-full bg-secondary/10 blur-3xl" />
-            <div className="absolute inset-x-0 top-0 h-[26rem] bg-[radial-gradient(circle_at_top,rgba(230,180,80,0.09),transparent_48%)]" />
+            <div className="absolute left-[-10rem] top-[-10rem] h-72 w-72 rounded-full bg-primary/10 blur-3xl" />
+            <div className="absolute bottom-[-11rem] right-[-8rem] h-96 w-96 rounded-full bg-secondary/8 blur-3xl" />
+            <div className="absolute inset-x-0 top-0 h-[20rem] bg-[radial-gradient(circle_at_top,rgba(230,180,80,0.07),transparent_55%)]" />
           </div>
 
-          <div className="relative z-10">
-            <Nav isAuthenticated={isAuthenticated} currentUser={currentUser} onLogout={handleLogout} />
+          <AppShell currentUser={currentUser} isAuthenticated={isAuthenticated} onLogout={handleLogout}>
             <OfflineIndicator />
             <SyncManager />
             <ServiceWorkerRegistration />
-            <div className="mx-auto w-full max-w-7xl px-4 pb-10 pt-8 sm:px-6 lg:px-8">
-              <Routes>
-                <Route path="/" element={<Navigate to={isAuthenticated ? "/beverages" : "/login"} replace />} />
-                <Route
-                  path="/login"
-                  element={isAuthenticated ? <Navigate to="/beverages" replace /> : <Login onLogin={handleLogin} />}
-                />
-                <Route
-                  path="/setup-account"
-                  element={
-                    isAuthenticated ? (
-                      <Navigate to="/beverages" replace />
-                    ) : (
-                      <SetupAccount onSetupSuccess={handleLogin} />
-                    )
-                  }
-                />
-                <Route
-                  path="/cadastro"
-                  element={
-                    <ProtectedRoute
-                      isAuthenticated={isAuthenticated}
-                      isLoading={isAuthLoading}
-                      currentUser={currentUser}
-                      allowedRoles={["admin"]}
-                    >
-                      <UserManagement />
+            <Routes>
+              <Route
+                path="/"
+                element={
+                  isAuthenticated ? (
+                    <ProtectedRoute currentUser={currentUser} isAuthenticated={isAuthenticated} isLoading={isAuthLoading}>
+                      <HomeDashboard />
                     </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/usuarios"
-                  element={
-                    <ProtectedRoute
-                      isAuthenticated={isAuthenticated}
-                      isLoading={isAuthLoading}
-                      currentUser={currentUser}
-                      allowedRoles={["admin"]}
-                    >
-                      <UserManagement />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/beverages"
-                  element={
-                    <ProtectedRoute
-                      isAuthenticated={isAuthenticated}
-                      isLoading={isAuthLoading}
-                      currentUser={currentUser}
-                    >
-                      <BeveragesList />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/beverages/new"
-                  element={
-                    <ProtectedRoute
-                      isAuthenticated={isAuthenticated}
-                      isLoading={isAuthLoading}
-                      currentUser={currentUser}
-                      allowedRoles={["admin", "manager"]}
-                    >
-                      <CreateBeverage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/beverages/history"
-                  element={
-                    <ProtectedRoute
-                      isAuthenticated={isAuthenticated}
-                      isLoading={isAuthLoading}
-                      currentUser={currentUser}
-                    >
-                      <BeverageHistory />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/ingredients"
-                  element={
-                    <ProtectedRoute
-                      isAuthenticated={isAuthenticated}
-                      isLoading={isAuthLoading}
-                      currentUser={currentUser}
-                    >
-                      <IngredientsList />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/ingredients/new"
-                  element={
-                    <ProtectedRoute
-                      isAuthenticated={isAuthenticated}
-                      isLoading={isAuthLoading}
-                      currentUser={currentUser}
-                      allowedRoles={["admin", "manager"]}
-                    >
-                      <CreateIngredient />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/salon"
-                  element={
-                    <ProtectedRoute
-                      isAuthenticated={isAuthenticated}
-                      isLoading={isAuthLoading}
-                      currentUser={currentUser}
-                      allowedRoles={["admin", "manager", "waiter"]}
-                    >
-                      <SalonDashboard />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/salon/tables"
-                  element={
-                    <ProtectedRoute
-                      isAuthenticated={isAuthenticated}
-                      isLoading={isAuthLoading}
-                      currentUser={currentUser}
-                      allowedRoles={["admin", "manager", "waiter"]}
-                    >
-                      <TablesGrid />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/salon/tables/:id"
-                  element={
-                    <ProtectedRoute
-                      isAuthenticated={isAuthenticated}
-                      isLoading={isAuthLoading}
-                      currentUser={currentUser}
-                      allowedRoles={["admin", "manager", "waiter"]}
-                    >
-                      <TableDetail />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/salon/commands/:id"
-                  element={
-                    <ProtectedRoute
-                      isAuthenticated={isAuthenticated}
-                      isLoading={isAuthLoading}
-                      currentUser={currentUser}
-                      allowedRoles={["admin", "manager", "waiter"]}
-                    >
-                      <CommandView />
-                    </ProtectedRoute>
-                  }
-                />
-              </Routes>
-            </div>
-          </div>
+                  ) : (
+                    <Navigate replace to="/login" />
+                  )
+                }
+              />
+              <Route path="/login" element={isAuthenticated ? <Navigate replace to="/" /> : <Login onLogin={handleLogin} />} />
+              <Route
+                path="/setup-account"
+                element={isAuthenticated ? <Navigate replace to="/" /> : <SetupAccount onSetupSuccess={handleLogin} />}
+              />
+              <Route
+                path="/cadastro"
+                element={
+                  <ProtectedRoute allowedRoles={["admin"]} currentUser={currentUser} isAuthenticated={isAuthenticated} isLoading={isAuthLoading}>
+                    <UserManagement />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/usuarios"
+                element={
+                  <ProtectedRoute allowedRoles={["admin"]} currentUser={currentUser} isAuthenticated={isAuthenticated} isLoading={isAuthLoading}>
+                    <UserManagement />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/beverages"
+                element={
+                  <ProtectedRoute currentUser={currentUser} isAuthenticated={isAuthenticated} isLoading={isAuthLoading}>
+                    <BeveragesList />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/beverages/new"
+                element={
+                  <ProtectedRoute allowedRoles={["admin", "manager"]} currentUser={currentUser} isAuthenticated={isAuthenticated} isLoading={isAuthLoading}>
+                    <CreateBeverage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/beverages/history"
+                element={
+                  <ProtectedRoute currentUser={currentUser} isAuthenticated={isAuthenticated} isLoading={isAuthLoading}>
+                    <BeverageHistoryPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/ingredients"
+                element={
+                  <ProtectedRoute currentUser={currentUser} isAuthenticated={isAuthenticated} isLoading={isAuthLoading}>
+                    <IngredientsList />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/ingredients/new"
+                element={
+                  <ProtectedRoute allowedRoles={["admin", "manager"]} currentUser={currentUser} isAuthenticated={isAuthenticated} isLoading={isAuthLoading}>
+                    <CreateIngredient />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/salon"
+                element={
+                  <ProtectedRoute allowedRoles={["admin", "manager", "waiter"]} currentUser={currentUser} isAuthenticated={isAuthenticated} isLoading={isAuthLoading}>
+                    <SalonDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/salon/tables"
+                element={
+                  <ProtectedRoute allowedRoles={["admin", "manager", "waiter"]} currentUser={currentUser} isAuthenticated={isAuthenticated} isLoading={isAuthLoading}>
+                    <TablesGrid />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/salon/tables/:id"
+                element={
+                  <ProtectedRoute allowedRoles={["admin", "manager", "waiter"]} currentUser={currentUser} isAuthenticated={isAuthenticated} isLoading={isAuthLoading}>
+                    <TableDetail />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/salon/commands/:id"
+                element={
+                  <ProtectedRoute allowedRoles={["admin", "manager", "waiter"]} currentUser={currentUser} isAuthenticated={isAuthenticated} isLoading={isAuthLoading}>
+                    <CommandView />
+                  </ProtectedRoute>
+                }
+              />
+            </Routes>
+          </AppShell>
         </div>
       </Router>
     </OfflineProvider>

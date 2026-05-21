@@ -1,25 +1,28 @@
-import PropTypes from 'prop-types';
+import PropTypes from "prop-types"
 
 const Pagination = ({ currentPage, totalPages, onPageChange }) => {
-  const pageNumbers = [];
+  if (totalPages <= 1) {
+    return null
+  }
 
-  for (let i = 1; i <= totalPages; i++) {
-    pageNumbers.push(i);
+  const pageNumbers = []
+  for (let index = 1; index <= totalPages; index += 1) {
+    pageNumbers.push(index)
   }
 
   return (
-    <nav className="flex justify-center mt-8" aria-label="Paginação">
-      <ul className="flex space-x-2">
+    <nav aria-label="Paginacao" className="mt-6 flex justify-center">
+      <ul className="flex flex-wrap items-center justify-center gap-2 rounded-full border border-white/10 bg-surface/70 px-3 py-2 shadow-ambient">
         {pageNumbers.map((number) => (
           <li key={number}>
             <button
+              aria-current={currentPage === number ? "page" : undefined}
+              className={[
+                "h-10 min-w-10 rounded-full px-3 font-ui text-sm font-semibold transition",
+                currentPage === number ? "bg-primary text-background" : "text-text-dark hover:bg-white/8 hover:text-text",
+              ].join(" ")}
               onClick={() => onPageChange(number)}
-              className={`px-4 py-2 rounded-md ${
-                currentPage === number
-                  ? 'bg-secondary text-background'
-                  : 'bg-background-light text-text hover:bg-primary-light'
-              }`}
-              aria-current={currentPage === number ? 'page' : undefined}
+              type="button"
             >
               {number}
             </button>
@@ -27,14 +30,13 @@ const Pagination = ({ currentPage, totalPages, onPageChange }) => {
         ))}
       </ul>
     </nav>
-  );
-};
+  )
+}
 
 Pagination.propTypes = {
   currentPage: PropTypes.number.isRequired,
   totalPages: PropTypes.number.isRequired,
   onPageChange: PropTypes.func.isRequired,
-};
+}
 
-export default Pagination;
-
+export default Pagination

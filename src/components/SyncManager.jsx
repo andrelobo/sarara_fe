@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { FaSync, FaExclamationTriangle } from "react-icons/fa"
+import { FaExclamationTriangle, FaSync } from "react-icons/fa"
 import Swal from "sweetalert2"
 import { getSyncQueue, syncWithServer } from "../utils/db"
 
@@ -13,23 +13,20 @@ const SyncManager = () => {
   const [lastSyncTime, setLastSyncTime] = useState(null)
 
   useEffect(() => {
-    // Verificar operações pendentes ao carregar o componente
     checkPendingOperations()
 
-    // Verificar operações pendentes quando o status online mudar
     const handleOnline = () => {
       if (navigator.onLine) {
         checkPendingOperations()
 
-        // Perguntar ao usuário se deseja sincronizar
         if (pendingCount > 0) {
           Swal.fire({
-            title: "Conexão restaurada",
-            text: `Você tem ${pendingCount} operações pendentes. Deseja sincronizar agora?`,
+            title: "Conexao restaurada",
+            text: `Voce tem ${pendingCount} operacoes pendentes. Deseja sincronizar agora?`,
             icon: "question",
             showCancelButton: true,
             confirmButtonText: "Sim, sincronizar",
-            cancelButtonText: "Não",
+            cancelButtonText: "Nao",
           }).then((result) => {
             if (result.isConfirmed) {
               handleSync()
@@ -40,9 +37,7 @@ const SyncManager = () => {
     }
 
     window.addEventListener("online", handleOnline)
-
-    // Verificar periodicamente
-    const interval = setInterval(checkPendingOperations, 60000) // A cada minuto
+    const interval = setInterval(checkPendingOperations, 60000)
 
     return () => {
       window.removeEventListener("online", handleOnline)
@@ -55,81 +50,57 @@ const SyncManager = () => {
       const queue = await getSyncQueue()
       setPendingCount(queue.length)
     } catch (error) {
-      console.error("Erro ao verificar operações pendentes:", error)
+      console.error("Erro ao verificar operacoes pendentes:", error)
     }
   }
 
   const handleSync = async () => {
     if (!navigator.onLine) {
-      Swal.fire("Offline", "Não é possível sincronizar enquanto estiver offline", "warning")
+      Swal.fire("Offline", "Nao e possivel sincronizar enquanto estiver offline", "warning")
       return
     }
 
     setIsSyncing(true)
     try {
       const token = localStorage.getItem("authToken")
-      const headers = {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      }
-
+      const headers = { "Content-Type": "application/json", Authorization: `Bearer ${token}` }
       const result = await syncWithServer(API_BASE_URL, headers)
       setLastSyncTime(new Date())
 
       if (result.success) {
         Swal.fire("Sincronizado", result.message, "success")
       } else {
-        Swal.fire("Erro na sincronização", result.message, "error")
+        Swal.fire("Erro na sincronizacao", result.message, "error")
       }
 
-      // Atualizar contagem após sincronização
       checkPendingOperations()
     } catch (error) {
       console.error("Erro ao sincronizar:", error)
-      Swal.fire("Erro", `Falha na sincronização: ${error.message}`, "error")
+      Swal.fire("Erro", `Falha na sincronizacao: ${error.message}`, "error")
     } finally {
       setIsSyncing(false)
     }
   }
 
-  // Se não houver operações pendentes, não renderizar nada
   if (pendingCount === 0 && !isSyncing) return null
 
   return (
-    <div className="fixed bottom-4 right-4 z-50">
+    <div className="fixed bottom-[calc(env(safe-area-inset-bottom)+5.5rem)] right-4 z-40 lg:bottom-8 lg:right-8">
       <button
-        onClick={handleSync}
+        className={[
+          "flex items-center gap-2 rounded-full border px-4 py-3 text-sm font-ui font-semibold shadow-ambient transition",
+          navigator.onLine ? "border-primary/30 bg-surface text-text hover:border-primary/45" : "border-white/10 bg-surface text-text-dark",
+        ].join(" ")}
         disabled={isSyncing || !navigator.onLine}
-        className={`flex items-center space-x-2 px-4 py-2 rounded-full shadow-lg ${
-          navigator.onLine ? "bg-blue-600 hover:bg-blue-700 text-white" : "bg-gray-400 text-gray-700 cursor-not-allowed"
-        }`}
+        onClick={handleSync}
+        type="button"
       >
-        {isSyncing ? (
-          <>
-            <FaSync className="animate-spin" />
-            <span>Sincronizando...</span>
-          </>
-        ) : navigator.onLine ? (
-          <>
-            <FaSync />
-            <span>Sincronizar ({pendingCount})</span>
-          </>
-        ) : (
-          <>
-            <FaExclamationTriangle />
-            <span>Offline ({pendingCount})</span>
-          </>
-        )}
+        {isSyncing ? <FaSync className="animate-spin text-primary" /> : navigator.onLine ? <FaSync className="text-primary" /> : <FaExclamationTriangle className="text-primary" />}
+        <span>{isSyncing ? "Sincronizando..." : navigator.onLine ? `Sync (${pendingCount})` : `Offline (${pendingCount})`}</span>
       </button>
-
-      {lastSyncTime && (
-        <div className="text-xs text-center mt-1 text-gray-600">
-          Última sincronização: {lastSyncTime.toLocaleTimeString()}
-        </div>
-      )}
+      {lastSyncTime ? <div className="mt-2 text-center text-[11px] text-text-dark">Ultima sincronizacao: {lastSyncTime.toLocaleTimeString()}</div> : null}
     </div>
   )
 }
 
 export default SyncManager
-

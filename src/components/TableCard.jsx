@@ -1,12 +1,14 @@
 import { Link } from "react-router-dom"
 import { API_BASE_URL } from "../config/api"
 import { getAuthHeaders, hasRole } from "../utils/auth"
+import AppButton from "./ui/AppButton"
+import StatusPill from "./ui/StatusPill"
 
 const STATUS_META = {
-  free: { label: "Livre", badge: "bg-emerald-500/20 text-emerald-200 border-emerald-500/30" },
-  occupied: { label: "Ocupada", badge: "bg-amber-500/20 text-amber-100 border-amber-500/30" },
-  closing: { label: "Fechando", badge: "bg-orange-500/20 text-orange-100 border-orange-500/30" },
-  reserved: { label: "Reservada", badge: "bg-sky-500/20 text-sky-100 border-sky-500/30" },
+  free: { label: "Livre", tone: "success" },
+  occupied: { label: "Ocupada", tone: "warning" },
+  closing: { label: "Fechando", tone: "info" },
+  reserved: { label: "Reservada", tone: "offline" },
 }
 
 const TableCard = ({ table, currentUser, onRefresh, compact = false }) => {
@@ -14,13 +16,14 @@ const TableCard = ({ table, currentUser, onRefresh, compact = false }) => {
   const canManageCatalog = hasRole(currentUser, ["admin", "manager"])
   const canOperate = hasRole(currentUser, ["admin", "manager", "waiter"])
 
+  const waiterLabel = table.waiterId?.username || table.waiterId || "Nao atribuido"
+  const commandLabel = table.currentCommandId?.code || table.currentCommandId || "Nenhuma"
+
   const handleAction = async (action) => {
     try {
       const response = await fetch(`${API_BASE_URL}/tables/${table._id}/${action}`, {
         method: "POST",
-        headers: getAuthHeaders({
-          "Content-Type": "application/json",
-        }),
+        headers: getAuthHeaders({ "Content-Type": "application/json" }),
       })
 
       const data = await response.json().catch(() => ({}))
@@ -36,57 +39,37 @@ const TableCard = ({ table, currentUser, onRefresh, compact = false }) => {
   }
 
   return (
-    <article className="rounded-2xl border border-primary/15 bg-background-light p-5 shadow-sm">
+    <article className="rounded-[1.8rem] border border-white/10 bg-surface/75 p-5 shadow-ambient">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-xs uppercase tracking-[0.25em] text-text-dark">Mesa</p>
-          <h3 className="text-2xl font-semibold text-text">#{table.number}</h3>
+          <p className="font-ui text-[0.68rem] uppercase tracking-[0.28em] text-text-dark">Mesa</p>
+          <h3 className="mt-2 font-heading text-3xl text-text">#{table.number}</h3>
           <p className="mt-1 text-sm text-text-dark">{table.name || `Mesa ${table.number}`}</p>
         </div>
-
-        <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${statusMeta.badge}`}>
-          {statusMeta.label}
-        </span>
+        <StatusPill label={statusMeta.label} tone={statusMeta.tone} />
       </div>
 
-      <div className="mt-5 space-y-2 text-sm text-text-dark">
-        <p>Garçom atual: {table.waiterId || "Nao atribuido"}</p>
-        <p>Comanda ativa: {table.currentCommandId || "Nenhuma"}</p>
+      <div className="mt-5 flex flex-wrap gap-2 text-xs text-text-dark">
+        <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5">Garcom: {waiterLabel}</span>
+        <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5">Comanda: {commandLabel}</span>
       </div>
 
       <div className={`mt-5 grid gap-2 ${compact ? "grid-cols-1" : "grid-cols-2"}`}>
-        <Link
-          to={`/salon/tables/${table._id}`}
-          className="rounded-md border border-primary px-4 py-2 text-center text-sm font-medium text-text transition hover:bg-primary hover:text-background"
-        >
-          Ver mesa
-        </Link>
+        <AppButton to={`/salon/tables/${table._id}`} variant="ghost">Ver mesa</AppButton>
 
-        {canOperate && table.status === "free" && (
-          <button
-            type="button"
-            onClick={() => handleAction("open")}
-            className="rounded-md bg-secondary px-4 py-2 text-sm font-medium text-background transition hover:bg-secondary-light"
-          >
-            Abrir mesa
-          </button>
-        )}
+        {canOperate && table.status === "free" ? (
+          <AppButton onClick={() => handleAction("open")} variant="secondary">Abrir mesa</AppButton>
+        ) : null}
 
-        {canOperate && table.status !== "free" && !table.currentCommandId && (
-          <button
-            type="button"
-            onClick={() => handleAction("close")}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-background transition hover:bg-primary-light"
-          >
-            Fechar mesa
-          </button>
-        )}
+        {canOperate && table.status !== "free" && !table.currentCommandId ? (
+          <AppButton onClick={() => handleAction("close")} variant="primary">Fechar mesa</AppButton>
+        ) : null}
 
-        {canManageCatalog && (
-          <span className="rounded-md border border-dashed border-primary/30 px-4 py-2 text-center text-xs text-text-dark">
-            Catalogo editavel no detalhe da mesa
-          </span>
-        )}
+        {canManageCatalog ? (
+          <div className="col-span-full rounded-2xl border border-dashed border-white/10 px-4 py-3 text-center text-xs text-text-dark">
+            Catalogo e ajustes avancados continuam no detalhe da mesa.
+          </div>
+        ) : null}
       </div>
     </article>
   )

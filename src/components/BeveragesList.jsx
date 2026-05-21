@@ -1,16 +1,23 @@
 "use client"
 
 import { useState, useCallback, useMemo } from "react"
-import BeverageCard from "./BeverageCard"
+import { FaBoxes, FaEdit, FaExclamationTriangle, FaGlassMartiniAlt, FaHistory, FaPlus, FaSyncAlt, FaTrash, FaWifi } from "react-icons/fa"
+import { toast } from "react-hot-toast"
+import BeverageHistory from "./BeverageHistory"
 import EditBeverageCard from "./EditBeverageCard"
 import ErrorBoundary from "./ErrorBoundary"
 import Pagination from "./Pagination"
-import { FaSearch, FaSync } from "react-icons/fa"
-import { toast } from "react-hot-toast" // Substituindo SweetAlert2
+import AppButton from "./ui/AppButton"
+import EmptyState from "./ui/EmptyState"
+import FloatingActionButton from "./ui/FloatingActionButton"
+import MetricTile from "./ui/MetricTile"
+import OperationalList from "./ui/OperationalList"
+import OperationalRow from "./ui/OperationalRow"
+import SearchBar from "./ui/SearchBar"
 import { useOfflineData } from "../hooks/useOfflineData"
 import { getStoredUser, hasRole } from "../utils/auth"
 
-const ITEMS_PER_PAGE = 9
+const ITEMS_PER_PAGE = 10
 
 const BeveragesList = () => {
   const {
@@ -21,38 +28,37 @@ const BeveragesList = () => {
     update: updateBeverage,
     remove: deleteBeverage,
   } = useOfflineData("beverages")
+
   const currentUser = getStoredUser()
   const canManageInventory = hasRole(currentUser, ["admin", "manager"])
 
   const [editingBeverage, setEditingBeverage] = useState(null)
+  const [historyTarget, setHistoryTarget] = useState(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [searchTerm, setSearchTerm] = useState("")
 
-  const handleError = useCallback((error, defaultMessage) => {
-    console.error("Erro:", error)
+  const handleError = useCallback((currentError, defaultMessage) => {
+    console.error("Erro:", currentError)
     const message =
-      error.message === "Failed to fetch"
-        ? "Não foi possível conectar ao servidor. Verifique sua conexão de internet."
-        : defaultMessage || "Ocorreu um erro. Por favor, tente novamente."
+      currentError.message === "Failed to fetch"
+        ? "Nao foi possivel conectar ao servidor. Verifique sua conexao."
+        : defaultMessage || "Ocorreu um erro. Tente novamente."
 
     toast.error(message)
-  }, [])
-
-  const handleEditBeverage = useCallback((beverage) => {
-    setEditingBeverage(beverage)
   }, [])
 
   const handleDeleteBeverage = useCallback(
     async (id) => {
       try {
-        const confirmed = window.confirm("Tem certeza que deseja deletar esta bebida? Esta ação não pode ser desfeita.")
-
-        if (confirmed) {
-          await deleteBeverage(id)
-          toast.success("Bebida removida com sucesso")
+        const confirmed = window.confirm("Tem certeza que deseja remover esta bebida?")
+        if (!confirmed) {
+          return
         }
-      } catch (error) {
-        handleError(error, "Erro ao deletar a bebida.")
+
+        await deleteBeverage(id)
+        toast.success("Bebida removida com sucesso")
+      } catch (currentError) {
+        handleError(currentError, "Erro ao remover a bebida.")
       }
     },
     [deleteBeverage, handleError],
@@ -64,91 +70,152 @@ const BeveragesList = () => {
         await updateBeverage(updatedBeverage._id, updatedBeverage)
         setEditingBeverage(null)
         toast.success("Bebida atualizada com sucesso")
-      } catch (error) {
-        handleError(error, "Erro ao salvar a bebida.")
+      } catch (currentError) {
+        handleError(currentError, "Erro ao salvar a bebida.")
       }
     },
-    [updateBeverage, handleError],
+    [handleError, updateBeverage],
   )
 
-  // Memoizando a filtragem para evitar recálculos desnecessários
   const filteredBeverages = useMemo(() => {
-    if (!searchTerm.trim()) return beverages
+    const normalizedTerm = searchTerm.trim().toLowerCase()
 
-    const searchTermLower = searchTerm.toLowerCase()
-    return beverages.filter(
-      (b) => b.name.toLowerCase().includes(searchTermLower) || b.category.toLowerCase().includes(searchTermLower),
-    )
+    return beverages.filter((beverage) => {
+      if (!normalizedTerm) {
+        return true
+      }
+
+      return `${beverage.name} ${beverage.category}`.toLowerCase().includes(normalizedTerm)
+    })
   }, [beverages, searchTerm])
 
-  // Memoizando a paginação para evitar recálculos desnecessários
   const currentBeverages = useMemo(() => {
-    const start = (currentPage - 1) * ITEMS_PER_PAGE
-    return filteredBeverages.slice(start, start + ITEMS_PER_PAGE)
-  }, [filteredBeverages, currentPage])
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
+    return filteredBeverages.slice(startIndex, startIndex + ITEMS_PER_PAGE)
+  }, [currentPage, filteredBeverages])
 
-  // Memoizando o total de páginas
   const totalPages = useMemo(() => Math.ceil(filteredBeverages.length / ITEMS_PER_PAGE), [filteredBeverages.length])
+  const lowStockCount = useMemo(() => beverages.filter((item) => Number(item.quantity) <= 5).length, [beverages])
+  const offlineCount = useMemo(() => beverages.filter((item) => String(item._id).startsWith("temp_")).length, [beverages])
+  const categoryCount = useMemo(() => new Set(beverages.map((item) => item.category)).size, [beverages])
 
   if (isLoading && !error) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      <div className="flex min-h-[40vh] items-center justify-center">
+        <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-t-2 border-primary"></div>
       </div>
     )
   }
 
   return (
     <ErrorBoundary>
-      <div className="p-4 bg-background min-h-screen">
-        <h1 className="text-3xl mb-6 text-center text-text">Lista de Bebidas</h1>
-        {error && (
-          <div className="text-error text-center mb-4 p-4 bg-background-light rounded-lg border border-error">
-            <p>{error}</p>
-            <button
-              onClick={fetchBeverages}
-              className="mt-2 px-4 py-2 bg-primary text-text rounded hover:bg-primary-light transition-colors flex items-center justify-center"
-            >
-              <FaSync className="mr-2" /> Tentar Novamente
-            </button>
+      <div className="space-y-6">
+        <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <MetricTile hint="Catalogo de bebidas disponivel para operacao e historico." icon={<FaGlassMartiniAlt />} label="Bebidas" tone="gold" value={beverages.length} />
+          <MetricTile hint="Leitura de diversidade para o turno atual." icon={<FaBoxes />} label="Categorias" value={categoryCount} />
+          <MetricTile hint="Itens com quantidade baixa pedem acao rapida." icon={<FaExclamationTriangle />} label="Baixo estoque" tone={lowStockCount > 0 ? "danger" : "success"} value={lowStockCount} />
+          <MetricTile hint="Registros ainda dependentes de sincronizacao." icon={<FaWifi />} label="Offline" tone={offlineCount > 0 ? "warning" : "info"} value={offlineCount} />
+        </section>
+
+        <OperationalList
+          action={
+            <div className="flex flex-wrap gap-2">
+              <AppButton icon={<FaHistory />} to="/beverages/history" variant="ghost">
+                Historico
+              </AppButton>
+              {canManageInventory ? (
+                <AppButton icon={<FaPlus />} to="/beverages/new" variant="secondary">
+                  Nova bebida
+                </AppButton>
+              ) : null}
+            </div>
+          }
+          description="Troca de cards grandes por lista operacional compacta, pronta para celular e tablet."
+          title="Estoque de bebidas"
+        >
+          <div className="border-b border-white/8 px-4 py-4 sm:px-5">
+            <SearchBar onChange={(event) => setSearchTerm(event.target.value)} placeholder="Buscar por nome ou categoria" value={searchTerm} />
           </div>
-        )}
-        <div className="mb-4 relative">
-          <input
-            type="text"
-            placeholder="Buscar bebidas..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full px-4 py-2 pl-10 bg-background-light border border-primary rounded-md text-text focus:outline-none focus:ring-2 focus:ring-secondary"
-          />
-          <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-text-dark" />
-        </div>
-        {currentBeverages.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {currentBeverages.map((beverage) => (
-              <BeverageCard
-                key={beverage._id}
-                beverage={beverage}
-                onEditBeverage={handleEditBeverage}
-                onDeleteBeverage={handleDeleteBeverage}
-                canManage={canManageInventory}
-                isOfflineItem={beverage._id.startsWith("temp_")}
+
+          {error ? (
+            <div className="p-4 sm:p-5">
+              <EmptyState
+                action={
+                  <AppButton icon={<FaSyncAlt />} onClick={fetchBeverages} variant="secondary">
+                    Tentar novamente
+                  </AppButton>
+                }
+                description={error}
+                icon={<FaExclamationTriangle />}
+                title="Nao foi possivel carregar as bebidas"
               />
-            ))}
-          </div>
-        ) : (
-          <p className="text-center text-text-dark">Nenhuma bebida encontrada.</p>
-        )}
-        {totalPages > 1 && (
-          <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
-        )}
-        {editingBeverage && canManageInventory && (
-          <EditBeverageCard
-            beverage={editingBeverage}
-            onSave={handleSaveBeverage}
-            onCancel={() => setEditingBeverage(null)}
-          />
-        )}
+            </div>
+          ) : currentBeverages.length > 0 ? (
+            currentBeverages.map((beverage) => {
+              const isOfflineItem = String(beverage._id).startsWith("temp_")
+              const isLowStock = Number(beverage.quantity) <= 5
+
+              return (
+                <OperationalRow
+                  key={beverage._id}
+                  actions={
+                    <>
+                      <AppButton icon={<FaHistory />} onClick={() => setHistoryTarget(beverage)} size="sm" variant="ghost">
+                        Historico
+                      </AppButton>
+                      {canManageInventory ? (
+                        <AppButton icon={<FaEdit />} onClick={() => setEditingBeverage(beverage)} size="sm" variant="ghost">
+                          Editar
+                        </AppButton>
+                      ) : null}
+                      {canManageInventory ? (
+                        <AppButton icon={<FaTrash />} onClick={() => handleDeleteBeverage(beverage._id)} size="sm" variant="danger">
+                          Excluir
+                        </AppButton>
+                      ) : null}
+                    </>
+                  }
+                  eyebrow={beverage.category}
+                  leading={
+                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 text-primary">
+                      <FaGlassMartiniAlt />
+                    </div>
+                  }
+                  meta={[
+                    `${beverage.quantity} ${beverage.unit}`,
+                    isOfflineItem ? "Salvo localmente" : "Sincronizado",
+                    isLowStock ? "Reposicao recomendada" : "Estoque saudavel",
+                  ]}
+                  status={isOfflineItem ? "Offline" : isLowStock ? "Baixo" : "Disponivel"}
+                  statusTone={isOfflineItem ? "offline" : isLowStock ? "warning" : "success"}
+                  subtitle="Acoes rapidas ao alcance do polegar para manter o ritmo da casa."
+                  title={beverage.name}
+                />
+              )
+            })
+          ) : (
+            <div className="p-4 sm:p-5">
+              <EmptyState
+                action={
+                  canManageInventory ? (
+                    <AppButton icon={<FaPlus />} to="/beverages/new" variant="secondary">
+                      Cadastrar bebida
+                    </AppButton>
+                  ) : null
+                }
+                description="Tente outro termo ou adicione a primeira bebida do catalogo."
+                icon={<FaGlassMartiniAlt />}
+                title="Nenhuma bebida encontrada"
+              />
+            </div>
+          )}
+        </OperationalList>
+
+        <Pagination currentPage={currentPage} onPageChange={setCurrentPage} totalPages={totalPages} />
+
+        {canManageInventory ? <FloatingActionButton icon={<FaPlus />} label="Nova bebida" to="/beverages/new" /> : null}
+        {editingBeverage && canManageInventory ? <EditBeverageCard beverage={editingBeverage} onCancel={() => setEditingBeverage(null)} onSave={handleSaveBeverage} /> : null}
+        {historyTarget ? <BeverageHistory beverage={historyTarget} onClose={() => setHistoryTarget(null)} /> : null}
       </div>
     </ErrorBoundary>
   )

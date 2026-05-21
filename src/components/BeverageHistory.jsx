@@ -1,8 +1,12 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { FaArrowLeft, FaTimes } from "react-icons/fa"
+import { useEffect, useState } from "react"
+import { FaTimes } from "react-icons/fa"
 import PropTypes from "prop-types"
+import { API_BASE_URL } from "../config/api"
+import { getAuthHeaders } from "../utils/auth"
+import AppButton from "./ui/AppButton"
+import EmptyState from "./ui/EmptyState"
 
 const BeverageHistory = ({ beverage, onClose }) => {
   const [history, setHistory] = useState([])
@@ -12,34 +16,32 @@ const BeverageHistory = ({ beverage, onClose }) => {
   useEffect(() => {
     const fetchHistory = async () => {
       if (!beverage || !beverage._id) {
-        setError("Informações da bebida não disponíveis")
+        setError("Informacoes da bebida nao disponiveis")
         setLoading(false)
         return
       }
 
       try {
         if (!navigator.onLine) {
-          throw new Error("Você está offline. O histórico não está disponível no momento.")
+          throw new Error("Voce esta offline. O historico nao esta disponivel no momento.")
         }
 
-        const token = localStorage.getItem("authToken")
-        const response = await fetch(`https://sarara-be.vercel.app/api/beverages/${beverage._id}/history`, {
-          headers: {
+        const response = await fetch(`${API_BASE_URL}/beverages/${beverage._id}/history`, {
+          headers: getAuthHeaders({
             "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
+          }),
         })
 
         if (!response.ok) {
-          throw new Error(`Erro ao buscar histórico: ${response.status}`)
+          throw new Error(`Erro ao buscar historico: ${response.status}`)
         }
 
         const data = await response.json()
-        setHistory(data)
-        setLoading(false)
-      } catch (error) {
-        console.error("Erro ao buscar histórico:", error)
-        setError(error.message || "Erro ao buscar histórico")
+        setHistory(Array.isArray(data) ? data : [])
+      } catch (currentError) {
+        console.error("Erro ao buscar historico:", currentError)
+        setError(currentError.message || "Erro ao buscar historico")
+      } finally {
         setLoading(false)
       }
     }
@@ -48,83 +50,58 @@ const BeverageHistory = ({ beverage, onClose }) => {
   }, [beverage])
 
   const formatDate = (dateString) => {
-    const options = {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    }
+    const options = { year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" }
     return new Date(dateString).toLocaleDateString("pt-BR", options)
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-background-light rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
-        <div className="bg-primary p-4 flex justify-between items-center">
-          <h2 className="text-xl font-semibold text-text">Histórico: {beverage?.name}</h2>
-          <button onClick={onClose} className="text-text-dark hover:text-text transition-colors" aria-label="Fechar">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-3xl overflow-hidden rounded-[2rem] border border-white/10 bg-surface shadow-[0_35px_90px_rgba(8,26,22,0.55)]">
+        <div className="flex items-start justify-between gap-4 border-b border-white/10 px-6 py-5">
+          <div>
+            <p className="font-ui text-[0.68rem] uppercase tracking-[0.28em] text-primary/80">Historico</p>
+            <h2 className="mt-2 font-heading text-2xl text-text">{beverage?.name}</h2>
+          </div>
+          <button className="rounded-full border border-white/10 bg-white/5 p-3 text-text-dark transition hover:text-text" onClick={onClose} type="button">
             <FaTimes />
           </button>
         </div>
 
-        <div className="p-4 overflow-y-auto max-h-[calc(90vh-8rem)]">
+        <div className="max-h-[70vh] overflow-y-auto px-6 py-5">
           {loading ? (
-            <div className="flex justify-center items-center h-40">
-              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+            <div className="flex justify-center py-16">
+              <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-t-2 border-primary"></div>
             </div>
           ) : error ? (
-            <div className="text-error text-center p-4">
-              <p>{error}</p>
-              <button
-                onClick={onClose}
-                className="mt-4 px-4 py-2 bg-primary text-text rounded hover:bg-primary-light transition-colors flex items-center mx-auto"
-              >
-                <FaArrowLeft className="mr-2" /> Voltar
-              </button>
-            </div>
+            <EmptyState description={error} title="Nao foi possivel carregar o historico" />
           ) : history.length === 0 ? (
-            <p className="text-text-dark text-center p-4">Nenhum registro de histórico encontrado para esta bebida.</p>
+            <EmptyState description="Nenhum registro encontrado para esta bebida." title="Historico vazio" />
           ) : (
-            <div className="space-y-4">
+            <div className="overflow-hidden rounded-[1.5rem] border border-white/10">
               {history.map((entry, index) => (
-                <div key={index} className="border border-primary rounded-lg p-4 bg-background">
-                  <div className="flex justify-between items-start mb-2">
-                    <span className="text-secondary font-semibold">{formatDate(entry.date)}</span>
-                    <span
-                      className={`px-2 py-1 rounded text-xs ${
-                        entry.change === "added" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
-                      }`}
-                    >
+                <div key={`${entry.date}-${index}`} className="border-b border-white/8 px-5 py-4 last:border-b-0">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <p className="font-ui text-sm font-semibold text-text">{formatDate(entry.date)}</p>
+                    <span className={[
+                      "rounded-full border px-3 py-1 text-[11px] font-ui font-semibold uppercase tracking-[0.24em]",
+                      entry.change === "added" ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-200" : "border-red-400/20 bg-red-500/10 text-red-200",
+                    ].join(" ")}>
                       {entry.change === "added" ? "Adicionado" : "Removido"}
                     </span>
                   </div>
-                  <p className="text-text-dark">
-                    <span className="font-semibold">Quantidade:</span> {entry.quantity} {beverage.unit}
-                  </p>
-                  {entry.user && (
-                    <p className="text-text-dark">
-                      <span className="font-semibold">Usuário:</span> {entry.user}
-                    </p>
-                  )}
-                  {entry.notes && (
-                    <p className="text-text-dark mt-2">
-                      <span className="font-semibold">Observações:</span> {entry.notes}
-                    </p>
-                  )}
+                  <div className="mt-3 flex flex-wrap gap-2 text-xs text-text-dark">
+                    <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5">Quantidade: {entry.quantity} {beverage.unit}</span>
+                    {entry.user ? <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5">Usuario: {entry.user}</span> : null}
+                  </div>
+                  {entry.notes ? <p className="mt-3 text-sm leading-6 text-text-dark">{entry.notes}</p> : null}
                 </div>
               ))}
             </div>
           )}
         </div>
 
-        <div className="bg-background-light p-4 border-t border-primary">
-          <button
-            onClick={onClose}
-            className="w-full px-4 py-2 bg-primary text-text rounded hover:bg-primary-light transition-colors"
-          >
-            Fechar
-          </button>
+        <div className="border-t border-white/10 px-6 py-5">
+          <AppButton fullWidth onClick={onClose} variant="secondary">Fechar</AppButton>
         </div>
       </div>
     </div>
@@ -141,4 +118,3 @@ BeverageHistory.propTypes = {
 }
 
 export default BeverageHistory
-
