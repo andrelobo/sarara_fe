@@ -16,11 +16,44 @@ const emptyCommandForm = {
   serviceTax: "",
 }
 
+const getReferenceId = (value) => {
+  if (!value) {
+    return ""
+  }
+
+  if (typeof value === "string") {
+    return value
+  }
+
+  if (typeof value === "object" && value._id) {
+    return value._id
+  }
+
+  return ""
+}
+
+const getReferenceLabel = (value) => {
+  if (!value) {
+    return "Nao atribuido"
+  }
+
+  if (typeof value === "string") {
+    return value
+  }
+
+  if (typeof value === "object") {
+    return value.username || value.name || value.number || value._id || "Nao atribuido"
+  }
+
+  return "Nao atribuido"
+}
+
 const TableDetail = () => {
   const { id } = useParams()
   const currentUser = useMemo(() => getStoredUser(), [])
   const canManageCatalog = hasRole(currentUser, ["admin", "manager"])
   const canOperate = hasRole(currentUser, ["admin", "manager", "waiter"])
+  const canAssignWaiter = currentUser?.role === "admin"
 
   const [table, setTable] = useState(null)
   const [form, setForm] = useState({
@@ -29,6 +62,8 @@ const TableDetail = () => {
     status: "free",
   })
   const [commandForm, setCommandForm] = useState(emptyCommandForm)
+  const [waiters, setWaiters] = useState([])
+  const [assignedWaiterId, setAssignedWaiterId] = useState("")
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [isOperating, setIsOperating] = useState(false)
@@ -57,6 +92,7 @@ const TableDetail = () => {
         name: data.name || "",
         status: data.status || "free",
       })
+      setAssignedWaiterId(getReferenceId(data.waiterId))
     } catch (fetchError) {
       console.error("Erro ao carregar mesa:", fetchError)
       setError(fetchError.message || "Nao foi possivel carregar a mesa.")
@@ -68,6 +104,52 @@ const TableDetail = () => {
   useEffect(() => {
     fetchTable()
   }, [id])
+
+  useEffect(() => {
+    if (!canAssignWaiter) {
+      setWaiters([])
+      return
+    }
+
+    let isCancelled = false
+
+    const fetchWaiters = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/users`, {
+          headers: getAuthHeaders({
+            "Content-Type": "application/json",
+          }),
+        })
+
+        const data = await response.json()
+        if (!response.ok) {
+          throw new Error(data.error || data.message || "Nao foi possivel carregar os garcons")
+        }
+
+        if (isCancelled) {
+          return
+        }
+
+        const activeWaiters = (Array.isArray(data.users) ? data.users : []).filter(
+          (user) => user.role === "waiter" && user.status === "active",
+        )
+
+        setWaiters(activeWaiters)
+      } catch (fetchError) {
+        console.error("Erro ao carregar garcons:", fetchError)
+
+        if (!isCancelled) {
+          setWaiters([])
+        }
+      }
+    }
+
+    fetchWaiters()
+
+    return () => {
+      isCancelled = true
+    }
+  }, [canAssignWaiter])
 
   const handleSaveTable = async (event) => {
     event.preventDefault()
@@ -102,6 +184,11 @@ const TableDetail = () => {
   }
 
   const handleTableAction = async (action) => {
+    if (action === "open" && canAssignWaiter && waiters.length > 0 && !assignedWaiterId) {
+      setError("Selecione o garcom responsavel antes de abrir a mesa.")
+      return
+    }
+
     setIsOperating(true)
     setError("")
 
@@ -111,6 +198,12 @@ const TableDetail = () => {
         headers: getAuthHeaders({
           "Content-Type": "application/json",
         }),
+        body:
+          action === "open"
+            ? JSON.stringify({
+                waiterId: assignedWaiterId || undefined,
+              })
+            : undefined,
       })
 
       const data = await response.json()
@@ -134,6 +227,12 @@ const TableDetail = () => {
 
   const handleCreateCommand = async (event) => {
     event.preventDefault()
+
+    if (canAssignWaiter && waiters.length > 0 && !assignedWaiterId) {
+      setError("Selecione o garcom responsavel antes de criar a comanda.")
+      return
+    }
+
     setIsCreatingCommand(true)
     setError("")
 
@@ -147,6 +246,7 @@ const TableDetail = () => {
         }),
         body: JSON.stringify({
           tableId: id,
+          waiterId: assignedWaiterId || undefined,
           serviceTax,
         }),
       })
@@ -263,13 +363,37 @@ const TableDetail = () => {
             </div>
             <div className="rounded-xl border border-primary/10 bg-background p-4">
               <p className="text-xs uppercase tracking-[0.2em] text-text-dark">Garcom</p>
-              <p className="mt-2 text-lg font-semibold text-text">{table.waiterId || "Nao atribuido"}</p>
+              <p className="mt-2 text-lg font-semibold text-text">{getReferenceLabel(table.waiterId)}</p>
             </div>
             <div className="rounded-xl border border-primary/10 bg-background p-4">
               <p className="text-xs uppercase tracking-[0.2em] text-text-dark">Comanda ativa</p>
-              <p className="mt-2 text-lg font-semibold text-text">{table.currentCommandId || "Nenhuma"}</p>
+              <p className="mt-2 text-lg font-semibold text-text">{getReferenceLabel(table.currentCommandId)}</p>
             </div>
           </div>
+
+          {canAssignWaiter ? (
+            <div className="mt-6 rounded-2xl border border-primary/10 bg-background p-5">
+              <label className="mb-2 block text-sm font-medium text-text-dark" htmlFor="table-waiter">
+                Garcom responsavel
+              </label>
+              <select
+                id="table-waiter"
+                value={assignedWaiterId}
+                onChange={(event) => setAssignedWaiterId(event.target.value)}
+                className="w-full rounded-md border border-primary bg-background-light px-3 py-2 text-text focus:border-secondary focus:outline-none"
+              >
+                <option value="">Selecione um garcom ativo</option>
+                {waiters.map((waiter) => (
+                  <option key={waiter._id} value={waiter._id}>
+                    {waiter.username} • {waiter.email}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-2 text-sm text-text-dark">
+                A mesa aberta e a comanda criada por admin agora podem ser associadas explicitamente ao garcom certo.
+              </p>
+            </div>
+          ) : null}
 
           {canOperate && (
             <div className="mt-6 flex flex-wrap gap-3">
