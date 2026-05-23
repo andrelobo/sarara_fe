@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback, useMemo } from "react"
+import { useState, useCallback, useEffect, useMemo } from "react"
 import { FaBoxes, FaEdit, FaExclamationTriangle, FaGlassMartiniAlt, FaHistory, FaPlus, FaSyncAlt, FaTrash, FaWifi } from "react-icons/fa"
 import { toast } from "react-hot-toast"
 import BeverageHistory from "./BeverageHistory"
@@ -14,8 +14,10 @@ import MetricTile from "./ui/MetricTile"
 import OperationalList from "./ui/OperationalList"
 import OperationalRow from "./ui/OperationalRow"
 import SearchBar from "./ui/SearchBar"
+import { useOffline } from "../context/OfflineContext"
 import { useOfflineData } from "../hooks/useOfflineData"
 import { getStoredUser, hasRole } from "../utils/auth"
+import { getInventorySyncStatusSummary, retrySyncOperationsByEntity } from "../utils/db"
 
 const ITEMS_PER_PAGE = 10
 
@@ -28,6 +30,7 @@ const BeveragesList = () => {
     update: updateBeverage,
     remove: deleteBeverage,
   } = useOfflineData("beverages")
+  const { online, syncing, syncData } = useOffline()
 
   const currentUser = getStoredUser()
   const canManageInventory = hasRole(currentUser, ["admin", "manager"])
@@ -36,6 +39,9 @@ const BeveragesList = () => {
   const [historyTarget, setHistoryTarget] = useState(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [searchTerm, setSearchTerm] = useState("")
+  const [pendingSyncCount, setPendingSyncCount] = useState(0)
+  const [failedSyncCount, setFailedSyncCount] = useState(0)
+  const [isRetryingFailedSync, setIsRetryingFailedSync] = useState(false)
 
   const handleError = useCallback((currentError, defaultMessage) => {
     console.error("Erro:", currentError)
@@ -99,6 +105,52 @@ const BeveragesList = () => {
   const offlineCount = useMemo(() => beverages.filter((item) => String(item._id).startsWith("temp_")).length, [beverages])
   const categoryCount = useMemo(() => new Set(beverages.map((item) => item.category)).size, [beverages])
 
+  const refreshSyncSummary = useCallback(async () => {
+    try {
+      const summary = await getInventorySyncStatusSummary("beverages")
+      setPendingSyncCount(summary.pending)
+      setFailedSyncCount(summary.failed)
+    } catch (currentError) {
+      console.error("Erro ao verificar a fila de bebidas:", currentError)
+    }
+  }, [])
+
+  const handleRetryFailedSync = useCallback(async () => {
+    if (!online) {
+      toast.error("Conecte-se novamente para reenviar as falhas de bebidas.")
+      return
+    }
+
+    setIsRetryingFailedSync(true)
+
+    try {
+      const { retried } = await retrySyncOperationsByEntity("beverages")
+
+      if (retried === 0) {
+        toast("Nao havia falhas de bebidas para reenviar.")
+        return
+      }
+
+      const result = await syncData({ silent: true })
+      await fetchBeverages()
+      await refreshSyncSummary()
+
+      if (result?.success) {
+        toast.success("Falhas de bebidas reenviadas para sincronizacao.")
+      } else {
+        toast.error(result?.message || "As falhas foram reenfileiradas, mas ainda existem erros.")
+      }
+    } catch (currentError) {
+      handleError(currentError, "Nao foi possivel reenviar as falhas de bebidas.")
+    } finally {
+      setIsRetryingFailedSync(false)
+    }
+  }, [fetchBeverages, handleError, online, refreshSyncSummary, syncData])
+
+  useEffect(() => {
+    refreshSyncSummary()
+  }, [beverages, online, refreshSyncSummary])
+
   if (isLoading && !error) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
@@ -114,7 +166,13 @@ const BeveragesList = () => {
           <MetricTile hint="Catalogo de bebidas disponivel para operacao e historico." icon={<FaGlassMartiniAlt />} label="Bebidas" tone="gold" value={beverages.length} />
           <MetricTile hint="Leitura de diversidade para o turno atual." icon={<FaBoxes />} label="Categorias" value={categoryCount} />
           <MetricTile hint="Itens com quantidade baixa pedem acao rapida." icon={<FaExclamationTriangle />} label="Baixo estoque" tone={lowStockCount > 0 ? "danger" : "success"} value={lowStockCount} />
-          <MetricTile hint="Registros ainda dependentes de sincronizacao." icon={<FaWifi />} label="Offline" tone={offlineCount > 0 ? "warning" : "info"} value={offlineCount} />
+          <MetricTile
+            hint={failedSyncCount > 0 ? "Existem falhas de sincronizacao nesta area." : "Registros ainda dependentes de sincronizacao."}
+            icon={<FaWifi />}
+            label="Offline"
+            tone={failedSyncCount > 0 ? "danger" : offlineCount > 0 || pendingSyncCount > 0 ? "warning" : "info"}
+            value={offlineCount + pendingSyncCount}
+          />
         </section>
 
         <OperationalList
@@ -133,7 +191,23 @@ const BeveragesList = () => {
           description="Troca de cards grandes por lista operacional compacta, pronta para celular e tablet."
           title="Estoque de bebidas"
         >
-          <div className="border-b border-white/8 px-4 py-4 sm:px-5">
+          <div className="space-y-3 border-b border-white/8 px-4 py-4 sm:px-5">
+            {failedSyncCount > 0 ? (
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-red-500/20 bg-red-500/8 px-4 py-3 text-sm text-red-100">
+                <div>
+                  <p className="font-medium">Existem {failedSyncCount} falha(s) de sincronizacao em bebidas.</p>
+                  <p className="mt-1 text-red-100/80">Reenfileire esta area e o BarChef tenta reenviar apenas as operacoes de bebidas.</p>
+                </div>
+                <AppButton
+                  icon={<FaSyncAlt />}
+                  onClick={handleRetryFailedSync}
+                  variant="danger"
+                  disabled={!online || syncing || isRetryingFailedSync}
+                >
+                  {isRetryingFailedSync ? "Reenviando..." : "Retry bebidas"}
+                </AppButton>
+              </div>
+            ) : null}
             <SearchBar onChange={(event) => setSearchTerm(event.target.value)} placeholder="Buscar por nome ou categoria" value={searchTerm} />
           </div>
 

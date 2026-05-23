@@ -1,9 +1,25 @@
 import { useEffect, useMemo, useState } from "react"
 import { Link, useParams } from "react-router-dom"
+import { toast } from "react-hot-toast"
 import CommandView from "./CommandView"
 import AuditTimeline from "./AuditTimeline"
+import StatusPill from "./ui/StatusPill"
+import { useOffline } from "../context/OfflineContext"
 import { API_BASE_URL } from "../config/api"
 import { getAuthHeaders, getStoredUser, hasRole } from "../utils/auth"
+import { getReferenceId, getReferenceLabel, requiresAssignedWaiter } from "../utils/salonAssignment"
+import {
+  attachCommandToOfflineTable,
+  closeOfflineTableRecord,
+  createOfflineCommandRecord,
+  getOfflineTable,
+  getSalonSyncStatus,
+  openOfflineTableRecord,
+  queueSalonOperation,
+  retrySalonEntityOperations,
+  saveOfflineCommand,
+  saveOfflineTable,
+} from "../utils/salonOffline"
 
 const TABLE_STATUS_OPTIONS = [
   { value: "free", label: "Livre" },
@@ -12,45 +28,29 @@ const TABLE_STATUS_OPTIONS = [
   { value: "reserved", label: "Reservada" },
 ]
 
-const emptyCommandForm = {
-  serviceTax: "",
+const TABLE_STATUS_META = {
+  free: { label: "Livre", tone: "success" },
+  occupied: { label: "Ocupada", tone: "warning" },
+  closing: { label: "Fechando", tone: "info" },
+  reserved: { label: "Reservada", tone: "offline" },
 }
 
-const getReferenceId = (value) => {
-  if (!value) {
+const formatSyncTimestamp = (timestamp) => {
+  if (!timestamp) {
     return ""
   }
 
-  if (typeof value === "string") {
-    return value
-  }
-
-  if (typeof value === "object" && value._id) {
-    return value._id
-  }
-
-  return ""
+  return new Date(timestamp).toLocaleString("pt-BR")
 }
 
-const getReferenceLabel = (value) => {
-  if (!value) {
-    return "Nao atribuido"
-  }
-
-  if (typeof value === "string") {
-    return value
-  }
-
-  if (typeof value === "object") {
-    return value.username || value.name || value.number || value._id || "Nao atribuido"
-  }
-
-  return "Nao atribuido"
+const emptyCommandForm = {
+  serviceTax: "",
 }
 
 const TableDetail = () => {
   const { id } = useParams()
   const currentUser = useMemo(() => getStoredUser(), [])
+  const { online, syncing, syncData } = useOffline()
   const canManageCatalog = hasRole(currentUser, ["admin", "manager"])
   const canOperate = hasRole(currentUser, ["admin", "manager", "waiter"])
   const canAssignWaiter = currentUser?.role === "admin"
@@ -68,7 +68,10 @@ const TableDetail = () => {
   const [isSaving, setIsSaving] = useState(false)
   const [isOperating, setIsOperating] = useState(false)
   const [isCreatingCommand, setIsCreatingCommand] = useState(false)
+  const [isRetryingSync, setIsRetryingSync] = useState(false)
   const [error, setError] = useState("")
+  const tableStatusMeta = TABLE_STATUS_META[table?.status] || TABLE_STATUS_META.free
+  const tableSyncStatus = getSalonSyncStatus(table)
 
   const fetchTable = async () => {
     setIsLoading(true)
@@ -86,6 +89,7 @@ const TableDetail = () => {
         throw new Error(data.error || data.message || "Nao foi possivel carregar a mesa")
       }
 
+      await saveOfflineTable(data)
       setTable(data)
       setForm({
         number: data.number,
@@ -95,7 +99,20 @@ const TableDetail = () => {
       setAssignedWaiterId(getReferenceId(data.waiterId))
     } catch (fetchError) {
       console.error("Erro ao carregar mesa:", fetchError)
-      setError(fetchError.message || "Nao foi possivel carregar a mesa.")
+      const offlineTable = await getOfflineTable(id).catch(() => null)
+
+      if (offlineTable) {
+        setTable(offlineTable)
+        setForm({
+          number: offlineTable.number,
+          name: offlineTable.name || "",
+          status: offlineTable.status || "free",
+        })
+        setAssignedWaiterId(getReferenceId(offlineTable.waiterId))
+        setError("Usando a versao offline desta mesa.")
+      } else {
+        setError(fetchError.message || "Nao foi possivel carregar a mesa.")
+      }
     } finally {
       setIsLoading(false)
     }
@@ -184,7 +201,14 @@ const TableDetail = () => {
   }
 
   const handleTableAction = async (action) => {
-    if (action === "open" && canAssignWaiter && waiters.length > 0 && !assignedWaiterId) {
+    if (
+      action === "open" &&
+      requiresAssignedWaiter({
+        canAssignWaiter,
+        waiterCount: waiters.length,
+        assignedWaiterId,
+      })
+    ) {
       setError("Selecione o garcom responsavel antes de abrir a mesa.")
       return
     }
@@ -193,6 +217,32 @@ const TableDetail = () => {
     setError("")
 
     try {
+      if (!navigator.onLine) {
+        const updatedTable =
+          action === "open"
+            ? openOfflineTableRecord(table, {
+                currentUser,
+                assignedWaiterId,
+              })
+            : closeOfflineTableRecord(table, { currentUser })
+
+        await saveOfflineTable(updatedTable)
+        await queueSalonOperation(action === "open" ? "table_open" : "table_close", {
+          localTableId: table._id,
+          status: updatedTable.status,
+          waiterId: updatedTable.waiterId || null,
+        })
+
+        setTable(updatedTable)
+        setForm({
+          number: updatedTable.number,
+          name: updatedTable.name || "",
+          status: updatedTable.status || "free",
+        })
+        toast.success(action === "open" ? "Mesa aberta offline." : "Mesa fechada offline.")
+        return
+      }
+
       const response = await fetch(`${API_BASE_URL}/tables/${id}/${action}`, {
         method: "POST",
         headers: getAuthHeaders({
@@ -228,7 +278,13 @@ const TableDetail = () => {
   const handleCreateCommand = async (event) => {
     event.preventDefault()
 
-    if (canAssignWaiter && waiters.length > 0 && !assignedWaiterId) {
+    if (
+      requiresAssignedWaiter({
+        canAssignWaiter,
+        waiterCount: waiters.length,
+        assignedWaiterId,
+      })
+    ) {
       setError("Selecione o garcom responsavel antes de criar a comanda.")
       return
     }
@@ -238,6 +294,30 @@ const TableDetail = () => {
 
     try {
       const serviceTax = commandForm.serviceTax === "" ? 0 : Number(commandForm.serviceTax)
+
+      if (!navigator.onLine) {
+        const offlineCommand = createOfflineCommandRecord({
+          tableId: id,
+          serviceTax,
+          currentUser,
+          assignedWaiterId,
+        })
+        const updatedTable = attachCommandToOfflineTable(table, offlineCommand)
+
+        await saveOfflineCommand(offlineCommand)
+        await saveOfflineTable(updatedTable)
+        await queueSalonOperation("command_create", {
+          localCommandId: offlineCommand._id,
+          tableId: id,
+          waiterId: offlineCommand.waiterId,
+          serviceTax,
+        })
+
+        setCommandForm(emptyCommandForm)
+        setTable(updatedTable)
+        toast.success("Comanda criada offline e adicionada na fila operacional.")
+        return
+      }
 
       const response = await fetch(`${API_BASE_URL}/commands`, {
         method: "POST",
@@ -298,6 +378,39 @@ const TableDetail = () => {
     }
   }
 
+  const handleRetrySync = async () => {
+    if (!table || !online) {
+      setError("Conecte-se novamente para reenviar as operacoes desta mesa.")
+      return
+    }
+
+    setIsRetryingSync(true)
+    setError("")
+
+    try {
+      const { retried } = await retrySalonEntityOperations("table", table)
+
+      if (retried === 0) {
+        toast("Nao havia falhas desta mesa para reenviar.")
+        return
+      }
+
+      const result = await syncData({ silent: true })
+      await fetchTable()
+
+      if (result?.success) {
+        toast.success("Mesa reenviada para sincronizacao.")
+      } else {
+        toast.error(result?.message || "A fila foi reenviada, mas ainda existem falhas.")
+      }
+    } catch (retryError) {
+      console.error("Erro ao reenviar sincronizacao da mesa:", retryError)
+      setError(retryError.message || "Nao foi possivel reenviar a mesa para sincronizacao.")
+    } finally {
+      setIsRetryingSync(false)
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="flex justify-center py-10">
@@ -327,6 +440,10 @@ const TableDetail = () => {
           <p className="mt-2 text-sm text-text-dark">
             Mesa #{table.number} • Status atual: {table.status}
           </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <StatusPill label={tableStatusMeta.label} tone={tableStatusMeta.tone} />
+            <StatusPill label={tableSyncStatus.label} tone={tableSyncStatus.tone} />
+          </div>
         </div>
         <Link
           to="/salon/tables"
@@ -356,7 +473,7 @@ const TableDetail = () => {
             ) : null}
           </div>
 
-          <div className="mt-6 grid gap-4 md:grid-cols-3">
+          <div className="mt-6 grid gap-4 md:grid-cols-4">
             <div className="rounded-xl border border-primary/10 bg-background p-4">
               <p className="text-xs uppercase tracking-[0.2em] text-text-dark">Status</p>
               <p className="mt-2 text-lg font-semibold text-text">{table.status}</p>
@@ -369,7 +486,34 @@ const TableDetail = () => {
               <p className="text-xs uppercase tracking-[0.2em] text-text-dark">Comanda ativa</p>
               <p className="mt-2 text-lg font-semibold text-text">{getReferenceLabel(table.currentCommandId)}</p>
             </div>
+            <div className="rounded-xl border border-primary/10 bg-background p-4">
+              <p className="text-xs uppercase tracking-[0.2em] text-text-dark">Sync operacional</p>
+              <p className="mt-2 text-lg font-semibold text-text">{tableSyncStatus.label}</p>
+              <p className="mt-2 text-sm text-text-dark">{tableSyncStatus.description}</p>
+              {tableSyncStatus.timestamp ? (
+                <p className="mt-2 text-xs text-text-dark/80">{formatSyncTimestamp(tableSyncStatus.timestamp)}</p>
+              ) : null}
+            </div>
           </div>
+
+          {tableSyncStatus.key === "failed" ? (
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-500/20 bg-red-500/8 p-4">
+              <div>
+                <p className="text-sm font-medium text-red-100">Esta mesa ficou com falha de sincronizacao.</p>
+                <p className="mt-1 text-sm text-red-100/80">
+                  Reenvie apenas as operacoes desta mesa quando a conexao estiver disponivel.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleRetrySync}
+                disabled={!online || syncing || isRetryingSync}
+                className="rounded-md border border-red-400/40 px-4 py-2 text-sm font-medium text-red-100 transition hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isRetryingSync ? "Reenviando..." : "Tentar sincronizar mesa"}
+              </button>
+            </div>
+          ) : null}
 
           {canAssignWaiter ? (
             <div className="mt-6 rounded-2xl border border-primary/10 bg-background p-5">

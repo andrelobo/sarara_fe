@@ -88,7 +88,12 @@ Routes currently wired in `src/App.jsx`:
 - Shared web worker for local persistence in `src/workers/dbWorker.js`
 - Offline context provider in `src/context/OfflineContext.jsx`
 - Sync UI in `src/components/SyncManager.jsx`
+- Shared sync orchestration now runs through `src/services/syncService.js`
 - PWA registration in `src/main.jsx`
+- `Offline Salon` foundation now has dedicated local stores for:
+  - `tables`
+  - `commands`
+  - `salon-queue`
 - Legacy manual service worker file still exists in `public/sw.js`, but metadata/cache references are now aligned to `barchef-mark.svg`, `barchef.webp`, and `barchef512.webp`
 
 ## Main Functional Areas
@@ -105,6 +110,15 @@ Routes currently wired in `src/App.jsx`:
 - Table detail with command creation
 - Command detail with item add/status updates and close/cancel flows
 - Table and command detail now render backend audit history timelines
+- Table cards, table detail, and command detail now expose offline sync state with operational badges:
+  - `Somente local`
+  - `Pendente`
+  - `Falha sync`
+  - `Sincronizado` / `Ao vivo`
+- Table detail and command detail now also expose a focused retry action for failed Salon sync operations, requeuing only the failed operations tied to the current mesa/comanda before calling the shared sync flow
+- Command item rows now also expose a focused retry action when a single item operation fails in the `salon-queue`
+- `SyncManager.jsx` now stays visible not only for pending operations but also for failed queue entries, surfacing separate counters for pending vs failed inventory/Salon work
+- `BeveragesList.jsx` and `IngredientsList.jsx` now expose focused retry actions for failed inventory sync operations in their own area
 - Command item modal can now create:
   - free manual items
   - items linked to existing beverages from inventory
@@ -136,36 +150,72 @@ Routes currently wired in `src/App.jsx`:
 - `src/components/Cadastro.jsx` is now a legacy component and is no longer used by the live route tree.
 - `src/components/UserManagement.jsx` already supports the intended admin flow: create with `invite` or `password`, render the latest activation link in the UI, and copy that link without leaving the app.
 - `src/components/SalonDashboard.jsx`, `TablesGrid.jsx`, `TableDetail.jsx`, `CommandView.jsx`, `TableCard.jsx`, and `AddCommandItemModal.jsx` now form the first live Salon shell.
+- `TableDetail.jsx` now supports explicit waiter assignment for admin before opening a table or creating a command.
 - `AddCommandItemModal.jsx` now fetches beverages from the backend when opened and lets the operator select an existing inventory beverage while keeping price entry manual.
 - `CommandView.jsx` now warns the operator that beverage-linked items deduct stock when the command is closed.
 - `AuditTimeline.jsx` now renders backend `auditTrail` data in table and command detail pages.
-- Salon currently talks to the backend in online mode only. The offline queue/store still covers inventory flows, not tables or commands.
+- `Offline Salon` slice 1 is now started:
+  - `TablesGrid.jsx` falls back to local cached tables when the backend is unavailable
+  - `TableDetail.jsx` can open/close table and create command offline
+  - `CommandView.jsx` can add item, update item status, and close/cancel command offline
+  - those Salon actions are persisted locally and appended to `salon-queue`
+- `Offline Salon` slice 2 is now started:
+  - `SyncManager` and `OfflineContext` now use the shared `syncService.js`
+  - the shared sync flow now processes both `sync-queue` and `salon-queue`
+  - local `table` and `command` IDs are reconciled to server IDs during replay
+  - local command item IDs are also rewritten when the backend returns the persisted item
+- local Salon sync failures are now copied back into the affected offline table/command record so the UI can warn the operator without opening IndexedDB
+- `TableDetail.jsx` and `CommandView.jsx` can now requeue failed Salon operations for the current mesa/comanda without forcing the operator to rerun the entire troubleshooting flow manually
+- `CommandView.jsx` can now also requeue failed item-level Salon operations from inside the command row itself
+- `SyncManager.jsx` now warns when only failed operations remain in the queues, instead of disappearing as if the local state were clean
+- `BeveragesList.jsx` can now requeue failed inventory operations scoped to `beverages`
+- `IngredientsList.jsx` can now requeue failed inventory operations scoped to `ingredients`
+- legacy ingredient offline updates/deletes are now being normalized to persist `entity` and `entityId` in the inventory `sync-queue`
+- `CommandView.jsx` no longer hides the whole command screen when it falls back to a cached offline command after a fetch error
 - PWA metadata and manifest now reference real frontend assets instead of missing `pwa-icon-192.png` and `pwa-icon-512.png` placeholders.
+- A lightweight automated frontend test base now exists with `node:test`:
+  - `src/utils/salonAssignment.test.js`
+  - `src/utils/salonAssignment.js`
+  - `src/utils/salonOffline.test.js`
+  - `src/utils/salonOffline.js`
+- The canonical next-phase roadmap for `Offline Salon -> Realtime -> Intelligence Layer` is tracked in [barchef-be/BARCHEF_PRODUCT_ROADMAP.md](/home/lobo/Área%20de%20trabalho/KODE/BarChef/barchef-be/BARCHEF_PRODUCT_ROADMAP.md:1)
 
 ## Known Risks In Code
 
 - Medium: offline logic is split across two different storage/sync stacks:
   - `src/utils/db.js` + worker-based flow
   - `src/services/db.js` + `src/services/syncService.js`
-- Medium: Salon is now available in the live shell, but tables and commands still have no IndexedDB persistence or retry queue integration.
+- Medium: Salon now has local persistence and replay through `salon-queue`, but there is still no advanced conflict policy for concurrent online/offline edits.
+- Medium: failed Salon operations can now be retried from table/command detail and from an individual command item, but there is still no dedicated conflict-resolution UI when the backend rejects the replay for business reasons.
+- Medium: inventory failures now have focused retry at the area level, but there is still no per-item conflict-resolution UI for a specific beverage or ingredient when the backend keeps rejecting the replay.
 - Medium: command items can now link to beverages and deduct stock on close, but price remains manual and there is still no offline conflict handling for this rule.
 - Medium: audit trails are now visible in the live shell, but there is still no filtering, pagination, or dedicated admin/reporting view for these histories.
 - Medium: the frontend now depends on the new backend RBAC/onboarding contract; if only one side is deployed, admin/setup flows will fail.
 - Medium: fonts are currently loaded from Google Fonts in `src/index.css`; if the product needs stricter offline branding fidelity later, the next step is self-hosting the font files.
 - Medium: several frontend history/chart callers use endpoint shapes that do not clearly match the backend implementation for beverage history.
+- Medium: the automated frontend tests currently cover pure Salon assignment helpers, not DOM rendering or browser interaction flows yet
 
 ## Local Development
 
 - Install dependencies: `yarn install`
 - Start dev server: `yarn dev`
 - Preview production build: `yarn preview`
+- Run automated tests: `yarn test`
 
 ## Validation Notes
 
 - Live production URL responded on 2026-05-20
+- Local `yarn test` completed successfully on 2026-05-22 after the first `Offline Salon` foundation utilities were added
 - Local `yarn build` completed successfully on 2026-05-20 after dependency installation
 - Local `yarn build` also completed successfully on 2026-05-21 after the first Salon routes/components were added
 - Local `yarn build` also completed successfully on 2026-05-21 after the deep BarChef rebrand pass
+- Local `yarn build` also completed successfully on 2026-05-22 after the first `Offline Salon` persistence/queue pass
+- Local `yarn build` also completed successfully on 2026-05-22 after the first `salon-queue` replay pass
+- Local `yarn test` and `yarn build` both completed successfully on 2026-05-22 after adding Salon sync-state feedback in the UI
+- Local `yarn test` and `yarn build` both completed successfully on 2026-05-22 after adding focused retry actions for failed Salon sync operations
+- Local `yarn test` and `yarn build` both completed successfully on 2026-05-22 after adding item-level retry actions for failed Salon command rows
+- Local `yarn test` and `yarn build` both completed successfully on 2026-05-22 after making `SyncManager` surface failed queue counts globally
+- Local `yarn test` and `yarn build` both completed successfully on 2026-05-22 after adding focused retry actions for failed inventory sync areas
 - Build emitted non-blocking warnings from Vite/Sass:
   - `splitVendorChunk` has no effect with the current manual chunk config
   - SweetAlert2 SCSS still uses deprecated Sass `@import`

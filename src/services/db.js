@@ -1,12 +1,15 @@
 import { openDB } from "idb"
 
 const DB_NAME = "sarara-db"
-const DB_VERSION = 1
+const DB_VERSION = 2
 
 // Stores (tabelas)
 const BEVERAGES_STORE = "beverages"
 const INGREDIENTS_STORE = "ingredients"
+const TABLES_STORE = "tables"
+const COMMANDS_STORE = "commands"
 const SYNC_STORE = "sync-queue"
+const SALON_QUEUE_STORE = "salon-queue"
 
 export async function initDB() {
   const db = await openDB(DB_NAME, DB_VERSION, {
@@ -33,6 +36,28 @@ export async function initDB() {
         })
         syncStore.createIndex("createdAt", "createdAt", { unique: false })
         syncStore.createIndex("status", "status", { unique: false })
+      }
+
+      if (!db.objectStoreNames.contains(TABLES_STORE)) {
+        const tableStore = db.createObjectStore(TABLES_STORE, { keyPath: "_id" })
+        tableStore.createIndex("number", "number", { unique: false })
+        tableStore.createIndex("status", "status", { unique: false })
+      }
+
+      if (!db.objectStoreNames.contains(COMMANDS_STORE)) {
+        const commandStore = db.createObjectStore(COMMANDS_STORE, { keyPath: "_id" })
+        commandStore.createIndex("tableId", "tableId", { unique: false })
+        commandStore.createIndex("status", "status", { unique: false })
+      }
+
+      if (!db.objectStoreNames.contains(SALON_QUEUE_STORE)) {
+        const salonQueueStore = db.createObjectStore(SALON_QUEUE_STORE, {
+          keyPath: "id",
+          autoIncrement: true,
+        })
+        salonQueueStore.createIndex("createdAt", "createdAt", { unique: false })
+        salonQueueStore.createIndex("status", "status", { unique: false })
+        salonQueueStore.createIndex("action", "action", { unique: false })
       }
     },
   })
@@ -112,4 +137,3 @@ export async function clearSyncQueue() {
   await tx.objectStore(SYNC_STORE).clear()
   return tx.done
 }
-

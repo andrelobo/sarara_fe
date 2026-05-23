@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom"
 import { API_BASE_URL } from "../config/api"
 import { getAuthHeaders, hasRole } from "../utils/auth"
+import { getSalonSyncStatus } from "../utils/salonOffline"
 import AppButton from "./ui/AppButton"
 import StatusPill from "./ui/StatusPill"
 
@@ -11,8 +12,9 @@ const STATUS_META = {
   reserved: { label: "Reservada", tone: "offline" },
 }
 
-const TableCard = ({ table, currentUser, onRefresh, compact = false }) => {
+const TableCard = ({ table, currentUser, onRefresh, compact = false, onTableAction = null }) => {
   const statusMeta = STATUS_META[table.status] || STATUS_META.free
+  const syncStatus = getSalonSyncStatus(table)
   const canManageCatalog = hasRole(currentUser, ["admin", "manager"])
   const canOperate = hasRole(currentUser, ["admin", "manager", "waiter"])
 
@@ -20,6 +22,11 @@ const TableCard = ({ table, currentUser, onRefresh, compact = false }) => {
   const commandLabel = table.currentCommandId?.code || table.currentCommandId || "Nenhuma"
 
   const handleAction = async (action) => {
+    if (typeof onTableAction === "function") {
+      await onTableAction(table, action)
+      return
+    }
+
     try {
       const response = await fetch(`${API_BASE_URL}/tables/${table._id}/${action}`, {
         method: "POST",
@@ -46,13 +53,18 @@ const TableCard = ({ table, currentUser, onRefresh, compact = false }) => {
           <h3 className="mt-2 font-heading text-3xl text-text">#{table.number}</h3>
           <p className="mt-1 text-sm text-text-dark">{table.name || `Mesa ${table.number}`}</p>
         </div>
-        <StatusPill label={statusMeta.label} tone={statusMeta.tone} />
+        <div className="flex flex-wrap justify-end gap-2">
+          <StatusPill label={statusMeta.label} tone={statusMeta.tone} />
+          {syncStatus.key !== "live" ? <StatusPill label={syncStatus.label} tone={syncStatus.tone} /> : null}
+        </div>
       </div>
 
       <div className="mt-5 flex flex-wrap gap-2 text-xs text-text-dark">
         <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5">Garcom: {waiterLabel}</span>
         <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5">Comanda: {commandLabel}</span>
       </div>
+
+      {syncStatus.key !== "live" ? <p className="mt-3 text-xs text-text-dark">{syncStatus.description}</p> : null}
 
       <div className={`mt-5 grid gap-2 ${compact ? "grid-cols-1" : "grid-cols-2"}`}>
         <AppButton to={`/salon/tables/${table._id}`} variant="ghost">Ver mesa</AppButton>

@@ -11,7 +11,16 @@ import MetricTile from "./ui/MetricTile"
 import OperationalList from "./ui/OperationalList"
 import OperationalRow from "./ui/OperationalRow"
 import SearchBar from "./ui/SearchBar"
-import { saveData, saveSyncQueue, getSyncQueue, clearSyncQueue, getAllData } from "../utils/db"
+import { useOffline } from "../context/OfflineContext"
+import {
+  clearSyncQueue,
+  getAllData,
+  getInventorySyncStatusSummary,
+  getSyncQueue,
+  retrySyncOperationsByEntity,
+  saveData,
+  saveSyncQueue,
+} from "../utils/db"
 import { API_BASE_URL } from "../config/api"
 import { getStoredUser, hasRole } from "../utils/auth"
 
@@ -24,6 +33,10 @@ const IngredientsList = () => {
   const [isLoading, setIsLoading] = useState(true)
   const [currentPage, setCurrentPage] = useState(1)
   const [searchTerm, setSearchTerm] = useState("")
+  const [pendingSyncCount, setPendingSyncCount] = useState(0)
+  const [failedSyncCount, setFailedSyncCount] = useState(0)
+  const [isRetryingFailedSync, setIsRetryingFailedSync] = useState(false)
+  const { online, syncing, syncData } = useOffline()
   const currentUser = getStoredUser()
   const canManageInventory = hasRole(currentUser, ["admin", "manager"])
 
@@ -75,6 +88,16 @@ const IngredientsList = () => {
     fetchIngredients()
   }, [fetchIngredients])
 
+  const refreshSyncSummary = useCallback(async () => {
+    try {
+      const summary = await getInventorySyncStatusSummary("ingredients")
+      setPendingSyncCount(summary.pending)
+      setFailedSyncCount(summary.failed)
+    } catch (currentError) {
+      console.error("Erro ao verificar a fila de ingredientes:", currentError)
+    }
+  }, [])
+
   const handleDeleteIngredient = useCallback(
     async (id) => {
       try {
@@ -92,7 +115,7 @@ const IngredientsList = () => {
           setIngredients((prev) => prev.filter((ingredient) => ingredient._id !== id))
           Swal.fire("Removido", "O ingrediente foi removido com sucesso.", "success")
         } else {
-          await saveSyncQueue({ type: "delete", id })
+          await saveSyncQueue({ type: "delete", entity: "ingredients", entityId: id, id })
           setIngredients((prev) => prev.filter((ingredient) => ingredient._id !== id))
           Swal.fire("Removido offline", "O ingrediente sera removido quando a conexao voltar.", "success")
         }
@@ -123,7 +146,7 @@ const IngredientsList = () => {
           setEditingIngredient(null)
           Swal.fire("Atualizado", "O ingrediente foi atualizado com sucesso.", "success")
         } else {
-          await saveSyncQueue({ type: "update", data: updatedIngredient })
+          await saveSyncQueue({ type: "update", entity: "ingredients", entityId: updatedIngredient._id, data: updatedIngredient })
           setIngredients((prev) => prev.map((ingredient) => (ingredient._id === updatedIngredient._id ? updatedIngredient : ingredient)))
           setEditingIngredient(null)
           Swal.fire("Atualizado offline", "A edicao sera sincronizada quando a conexao voltar.", "success")
@@ -166,6 +189,42 @@ const IngredientsList = () => {
     syncChanges()
   }, [fetchIngredients, handleError, headers])
 
+  useEffect(() => {
+    refreshSyncSummary()
+  }, [ingredients, online, refreshSyncSummary])
+
+  const handleRetryFailedSync = useCallback(async () => {
+    if (!online) {
+      Swal.fire("Offline", "Conecte-se novamente para reenviar as falhas de ingredientes.", "warning")
+      return
+    }
+
+    setIsRetryingFailedSync(true)
+
+    try {
+      const { retried } = await retrySyncOperationsByEntity("ingredients")
+
+      if (retried === 0) {
+        Swal.fire("Fila limpa", "Nao havia falhas de ingredientes para reenviar.", "info")
+        return
+      }
+
+      const result = await syncData({ silent: true })
+      await fetchIngredients()
+      await refreshSyncSummary()
+
+      if (result?.success) {
+        Swal.fire("Reenviado", "As falhas de ingredientes foram reenviadas para sincronizacao.", "success")
+      } else {
+        Swal.fire("Atenção", result?.message || "As falhas foram reenfileiradas, mas ainda existem erros.", "warning")
+      }
+    } catch (currentError) {
+      handleError(currentError, "Nao foi possivel reenviar as falhas de ingredientes.")
+    } finally {
+      setIsRetryingFailedSync(false)
+    }
+  }, [fetchIngredients, handleError, online, refreshSyncSummary, syncData])
+
   const filteredIngredients = useMemo(() => {
     const normalizedTerm = searchTerm.trim().toLowerCase()
 
@@ -202,7 +261,13 @@ const IngredientsList = () => {
           <MetricTile hint="Ingredientes de base e apoio para bar e cozinha." icon={<FaCarrot />} label="Ingredientes" tone="gold" value={ingredients.length} />
           <MetricTile hint="Variedade de grupos em operacao." icon={<FaLeaf />} label="Categorias" value={categoryCount} />
           <MetricTile hint="Itens abaixo da zona confortavel de estoque." icon={<FaExclamationTriangle />} label="Baixo estoque" tone={lowStockCount > 0 ? "danger" : "success"} value={lowStockCount} />
-          <MetricTile hint={offlineMode ? "As alteracoes ficam na fila de sincronizacao." : "Sincronizacao pronta para operacao online."} icon={<FaWifi />} label="Modo" tone={offlineMode ? "warning" : "info"} value={offlineMode ? "Offline" : "Online"} />
+          <MetricTile
+            hint={failedSyncCount > 0 ? "Existem falhas de sincronizacao nesta area." : offlineMode ? "As alteracoes ficam na fila de sincronizacao." : "Sincronizacao pronta para operacao online."}
+            icon={<FaWifi />}
+            label="Modo"
+            tone={failedSyncCount > 0 ? "danger" : offlineMode || pendingSyncCount > 0 ? "warning" : "info"}
+            value={offlineMode ? "Offline" : failedSyncCount > 0 ? `${failedSyncCount} falha(s)` : "Online"}
+          />
         </section>
 
         <OperationalList
@@ -214,6 +279,22 @@ const IngredientsList = () => {
             {offlineMode ? (
               <div className="rounded-2xl border border-primary/20 bg-primary/10 px-4 py-3 text-sm text-primary">
                 Voce esta offline. As alteracoes ficam salvas localmente e entram na sincronizacao quando a conexao voltar.
+              </div>
+            ) : null}
+            {failedSyncCount > 0 ? (
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-red-500/20 bg-red-500/8 px-4 py-3 text-sm text-red-100">
+                <div>
+                  <p className="font-medium">Existem {failedSyncCount} falha(s) de sincronizacao em ingredientes.</p>
+                  <p className="mt-1 text-red-100/80">Reenfileire esta area e o BarChef tenta reenviar apenas as operacoes de ingredientes.</p>
+                </div>
+                <AppButton
+                  icon={<FaSyncAlt />}
+                  onClick={handleRetryFailedSync}
+                  variant="danger"
+                  disabled={!online || syncing || isRetryingFailedSync}
+                >
+                  {isRetryingFailedSync ? "Reenviando..." : "Retry ingredientes"}
+                </AppButton>
               </div>
             ) : null}
             <SearchBar onChange={(event) => setSearchTerm(event.target.value)} placeholder="Buscar por nome ou categoria" value={searchTerm} />

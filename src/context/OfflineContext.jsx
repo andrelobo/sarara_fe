@@ -37,10 +37,12 @@ export function OfflineProvider({ children }) {
     return () => unsubscribe()
   }, [])
 
-  const handleSync = async () => {
+  const handleSync = async ({ silent = false } = {}) => {
     if (!online) {
-      Swal.fire("Offline", "Não é possível sincronizar enquanto estiver offline", "warning")
-      return
+      if (!silent) {
+        Swal.fire("Offline", "Não é possível sincronizar enquanto estiver offline", "warning")
+      }
+      return { success: false, message: "Offline, nao e possivel sincronizar" }
     }
 
     setSyncing(true)
@@ -48,14 +50,19 @@ export function OfflineProvider({ children }) {
       const result = await syncWithServer()
       setLastSyncTime(new Date())
 
-      if (result.success) {
+      if (!silent && result.success) {
         Swal.fire("Sincronizado", result.message, "success")
-      } else {
+      } else if (!silent) {
         Swal.fire("Erro na sincronização", result.message, "error")
       }
+
+      return result
     } catch (error) {
       console.error("Erro ao sincronizar:", error)
-      Swal.fire("Erro", `Falha na sincronização: ${error.message}`, "error")
+      if (!silent) {
+        Swal.fire("Erro", `Falha na sincronização: ${error.message}`, "error")
+      }
+      return { success: false, message: `Falha na sincronizacao: ${error.message}` }
     } finally {
       setSyncing(false)
     }
@@ -78,4 +85,3 @@ export function OfflineProvider({ children }) {
 export function useOffline() {
   return useContext(OfflineContext)
 }
-

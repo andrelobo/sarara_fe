@@ -1,14 +1,17 @@
 import { openDB } from "idb"
 
 const DB_NAME = "sarara-db"
-const DB_VERSION = 1
+const DB_VERSION = 2
 
 // Stores (tabelas)
-const BEVERAGES_STORE = "beverages"
-const INGREDIENTS_STORE = "ingredients"
-const SYNC_STORE = "sync-queue"
-const FORM_DATA_STORE = "form-data"
-const AUTH_STORE = "auth"
+export const BEVERAGES_STORE = "beverages"
+export const INGREDIENTS_STORE = "ingredients"
+export const TABLES_STORE = "tables"
+export const COMMANDS_STORE = "commands"
+export const SYNC_STORE = "sync-queue"
+export const SALON_QUEUE_STORE = "salon-queue"
+export const FORM_DATA_STORE = "form-data"
+export const AUTH_STORE = "auth"
 
 // Inicializa o banco de dados
 export async function initDB() {
@@ -36,6 +39,28 @@ export async function initDB() {
         })
         syncStore.createIndex("createdAt", "createdAt", { unique: false })
         syncStore.createIndex("status", "status", { unique: false })
+      }
+
+      if (!db.objectStoreNames.contains(TABLES_STORE)) {
+        const tableStore = db.createObjectStore(TABLES_STORE, { keyPath: "_id" })
+        tableStore.createIndex("number", "number", { unique: false })
+        tableStore.createIndex("status", "status", { unique: false })
+      }
+
+      if (!db.objectStoreNames.contains(COMMANDS_STORE)) {
+        const commandStore = db.createObjectStore(COMMANDS_STORE, { keyPath: "_id" })
+        commandStore.createIndex("tableId", "tableId", { unique: false })
+        commandStore.createIndex("status", "status", { unique: false })
+      }
+
+      if (!db.objectStoreNames.contains(SALON_QUEUE_STORE)) {
+        const salonQueueStore = db.createObjectStore(SALON_QUEUE_STORE, {
+          keyPath: "id",
+          autoIncrement: true,
+        })
+        salonQueueStore.createIndex("createdAt", "createdAt", { unique: false })
+        salonQueueStore.createIndex("status", "status", { unique: false })
+        salonQueueStore.createIndex("action", "action", { unique: false })
       }
 
       // Criar store para dados de formulários
@@ -123,6 +148,85 @@ export async function clearSyncQueue() {
   const db = await initDB()
   const tx = db.transaction(SYNC_STORE, "readwrite")
   await tx.objectStore(SYNC_STORE).clear()
+  return tx.done
+}
+
+export function operationTargetsInventoryEntity(operation, entityType) {
+  if (!operation || !entityType) {
+    return false
+  }
+
+  if (operation.entity) {
+    return operation.entity === entityType
+  }
+
+  // Legacy ingredient flows were queued without `entity`; keep them retryable.
+  if (entityType === "ingredients") {
+    return true
+  }
+
+  return false
+}
+
+export async function getInventorySyncStatusSummary(entityType) {
+  const operations = await getAllData(SYNC_STORE)
+  const relevantOperations = operations.filter((operation) => operationTargetsInventoryEntity(operation, entityType))
+
+  return {
+    pending: relevantOperations.filter((operation) => operation.status === "pending").length,
+    failed: relevantOperations.filter((operation) => operation.status === "failed").length,
+    total: relevantOperations.length,
+  }
+}
+
+export async function retrySyncOperationsByEntity(entityType) {
+  const operations = await getAllData(SYNC_STORE)
+  const failedOperations = operations.filter(
+    (operation) => operation.status === "failed" && operationTargetsInventoryEntity(operation, entityType),
+  )
+
+  if (failedOperations.length === 0) {
+    return { retried: 0 }
+  }
+
+  for (const operation of failedOperations) {
+    await updateSyncQueueItem(operation.id, {
+      status: "pending",
+      error: null,
+      lastAttempt: null,
+    })
+  }
+
+  return { retried: failedOperations.length }
+}
+
+export async function saveSalonQueue(operation) {
+  const db = await initDB()
+  return db.add(SALON_QUEUE_STORE, {
+    ...operation,
+    createdAt: new Date().toISOString(),
+    status: "pending",
+  })
+}
+
+export async function getSalonQueue() {
+  const db = await initDB()
+  return db.getAllFromIndex(SALON_QUEUE_STORE, "status", "pending")
+}
+
+export async function updateSalonQueueItem(id, updates) {
+  const db = await initDB()
+  const item = await db.get(SALON_QUEUE_STORE, id)
+  if (!item) return null
+
+  const updatedItem = { ...item, ...updates }
+  return db.put(SALON_QUEUE_STORE, updatedItem)
+}
+
+export async function clearSalonQueue() {
+  const db = await initDB()
+  const tx = db.transaction(SALON_QUEUE_STORE, "readwrite")
+  await tx.objectStore(SALON_QUEUE_STORE).clear()
   return tx.done
 }
 
@@ -249,4 +353,3 @@ export async function syncWithServer(apiBaseUrl, headers) {
     return { success: false, message: `Erro na sincronização: ${error.message}` }
   }
 }
-

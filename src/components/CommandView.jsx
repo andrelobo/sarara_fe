@@ -1,9 +1,26 @@
 import { useEffect, useMemo, useState } from "react"
 import { Link, useParams } from "react-router-dom"
+import { toast } from "react-hot-toast"
 import AddCommandItemModal from "./AddCommandItemModal"
 import AuditTimeline from "./AuditTimeline"
+import StatusPill from "./ui/StatusPill"
+import { useOffline } from "../context/OfflineContext"
 import { API_BASE_URL } from "../config/api"
 import { getAuthHeaders, getStoredUser, hasRole } from "../utils/auth"
+import {
+  addOfflineCommandItemRecord,
+  closeOfflineTableRecord,
+  finalizeOfflineCommandRecord,
+  getOfflineCommand,
+  getOfflineTable,
+  getSalonSyncStatus,
+  queueSalonOperation,
+  retrySalonCommandItemOperations,
+  retrySalonEntityOperations,
+  saveOfflineCommand,
+  saveOfflineTable,
+  updateOfflineCommandItemRecord,
+} from "../utils/salonOffline"
 
 const ITEM_STATUS_OPTIONS = [
   { value: "pending", label: "Pendente" },
@@ -29,10 +46,19 @@ const formatCurrency = (value) =>
     currency: "BRL",
   })
 
+const formatSyncTimestamp = (timestamp) => {
+  if (!timestamp) {
+    return ""
+  }
+
+  return new Date(timestamp).toLocaleString("pt-BR")
+}
+
 const CommandView = ({ commandId: commandIdProp = null, embedded = false, onCommandChange = null }) => {
   const params = useParams()
   const commandId = commandIdProp || params.id
   const currentUser = useMemo(() => getStoredUser(), [])
+  const { online, syncing, syncData } = useOffline()
   const canOperate = hasRole(currentUser, ["admin", "manager", "waiter"])
 
   const [command, setCommand] = useState(null)
@@ -41,8 +67,11 @@ const CommandView = ({ commandId: commandIdProp = null, embedded = false, onComm
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isFinishing, setIsFinishing] = useState(false)
+  const [isRetryingSync, setIsRetryingSync] = useState(false)
+  const [retryingItemId, setRetryingItemId] = useState(null)
 
   const statusMeta = COMMAND_STATUS_META[command?.status] || COMMAND_STATUS_META.open
+  const commandSyncStatus = getSalonSyncStatus(command)
 
   const fetchCommand = async () => {
     if (!commandId) {
@@ -67,11 +96,20 @@ const CommandView = ({ commandId: commandIdProp = null, embedded = false, onComm
         throw new Error(data.error || data.message || "Nao foi possivel carregar a comanda")
       }
 
+      await saveOfflineCommand(data)
       setCommand(data)
       onCommandChange?.(data)
     } catch (fetchError) {
       console.error("Erro ao carregar comanda:", fetchError)
-      setError(fetchError.message || "Nao foi possivel carregar a comanda.")
+      const offlineCommand = await getOfflineCommand(commandId).catch(() => null)
+
+      if (offlineCommand) {
+        setCommand(offlineCommand)
+        onCommandChange?.(offlineCommand)
+        setError("Usando a versao offline desta comanda.")
+      } else {
+        setError(fetchError.message || "Nao foi possivel carregar a comanda.")
+      }
     } finally {
       setIsLoading(false)
     }
@@ -87,6 +125,22 @@ const CommandView = ({ commandId: commandIdProp = null, embedded = false, onComm
     setIsSubmitting(true)
 
     try {
+      if (!navigator.onLine) {
+        const updatedCommand = addOfflineCommandItemRecord(command, payload, currentUser)
+        const addedItem = updatedCommand.items?.[updatedCommand.items.length - 1]
+        await saveOfflineCommand(updatedCommand)
+        await queueSalonOperation("command_add_item", {
+          localCommandId: commandId,
+          localItemId: addedItem?._id || null,
+          payload,
+        })
+        setCommand(updatedCommand)
+        onCommandChange?.(updatedCommand)
+        setIsModalOpen(false)
+        toast.success("Item salvo offline na comanda.")
+        return
+      }
+
       const response = await fetch(`${API_BASE_URL}/commands/${commandId}/items`, {
         method: "POST",
         headers: getAuthHeaders({
@@ -113,6 +167,20 @@ const CommandView = ({ commandId: commandIdProp = null, embedded = false, onComm
 
   const handleItemStatusChange = async (itemId, nextStatus) => {
     try {
+      if (!navigator.onLine) {
+        const updatedCommand = updateOfflineCommandItemRecord(command, itemId, { status: nextStatus }, currentUser)
+        await saveOfflineCommand(updatedCommand)
+        await queueSalonOperation("command_update_item", {
+          localCommandId: commandId,
+          itemId,
+          updates: { status: nextStatus },
+        })
+        setCommand(updatedCommand)
+        onCommandChange?.(updatedCommand)
+        toast.success("Status do item atualizado offline.")
+        return
+      }
+
       const response = await fetch(`${API_BASE_URL}/commands/${commandId}/items/${itemId}`, {
         method: "PATCH",
         headers: getAuthHeaders({
@@ -140,6 +208,26 @@ const CommandView = ({ commandId: commandIdProp = null, embedded = false, onComm
     setIsFinishing(true)
 
     try {
+      if (!navigator.onLine) {
+        const updatedCommand = finalizeOfflineCommandRecord(command, action, currentUser)
+        const relatedTable = await getOfflineTable(command.tableId)
+        const updatedTable = relatedTable ? closeOfflineTableRecord(relatedTable, { currentUser }) : null
+
+        await saveOfflineCommand(updatedCommand)
+        if (updatedTable) {
+          await saveOfflineTable(updatedTable)
+        }
+        await queueSalonOperation(action === "close" ? "command_close" : "command_cancel", {
+          localCommandId: commandId,
+          tableId: command.tableId,
+        })
+
+        setCommand(updatedCommand)
+        onCommandChange?.(updatedCommand)
+        toast.success(action === "close" ? "Comanda fechada offline." : "Comanda cancelada offline.")
+        return
+      }
+
       const response = await fetch(`${API_BASE_URL}/commands/${commandId}/${action}`, {
         method: "POST",
         headers: getAuthHeaders({
@@ -162,6 +250,72 @@ const CommandView = ({ commandId: commandIdProp = null, embedded = false, onComm
     }
   }
 
+  const handleRetrySync = async () => {
+    if (!command || !online) {
+      setError("Conecte-se novamente para reenviar as operacoes desta comanda.")
+      return
+    }
+
+    setIsRetryingSync(true)
+    setError("")
+
+    try {
+      const { retried } = await retrySalonEntityOperations("command", command)
+
+      if (retried === 0) {
+        toast("Nao havia falhas desta comanda para reenviar.")
+        return
+      }
+
+      const result = await syncData({ silent: true })
+      await fetchCommand()
+
+      if (result?.success) {
+        toast.success("Comanda reenviada para sincronizacao.")
+      } else {
+        toast.error(result?.message || "A fila foi reenviada, mas ainda existem falhas.")
+      }
+    } catch (retryError) {
+      console.error("Erro ao reenviar sincronizacao da comanda:", retryError)
+      setError(retryError.message || "Nao foi possivel reenviar a comanda para sincronizacao.")
+    } finally {
+      setIsRetryingSync(false)
+    }
+  }
+
+  const handleRetryItemSync = async (item) => {
+    if (!command || !item || !online) {
+      setError("Conecte-se novamente para reenviar este item da comanda.")
+      return
+    }
+
+    setRetryingItemId(item._id)
+    setError("")
+
+    try {
+      const { retried } = await retrySalonCommandItemOperations(command, item)
+
+      if (retried === 0) {
+        toast("Nao havia falhas deste item para reenviar.")
+        return
+      }
+
+      const result = await syncData({ silent: true })
+      await fetchCommand()
+
+      if (result?.success) {
+        toast.success("Item reenviado para sincronizacao.")
+      } else {
+        toast.error(result?.message || "O item foi reenviado, mas ainda existem falhas.")
+      }
+    } catch (retryError) {
+      console.error("Erro ao reenviar item da comanda:", retryError)
+      setError(retryError.message || "Nao foi possivel reenviar o item para sincronizacao.")
+    } finally {
+      setRetryingItemId(null)
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="flex justify-center py-10">
@@ -170,7 +324,7 @@ const CommandView = ({ commandId: commandIdProp = null, embedded = false, onComm
     )
   }
 
-  if (error) {
+  if (error && !command) {
     return <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">{error}</div>
   }
 
@@ -184,6 +338,12 @@ const CommandView = ({ commandId: commandIdProp = null, embedded = false, onComm
 
   return (
     <section className={`space-y-6 ${embedded ? "" : "mx-auto max-w-5xl"}`}>
+      {error ? (
+        <div className="rounded-xl border border-primary/20 bg-primary/10 px-4 py-3 text-sm text-primary">
+          {error}
+        </div>
+      ) : null}
+
       {!embedded && (
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
@@ -207,9 +367,12 @@ const CommandView = ({ commandId: commandIdProp = null, embedded = false, onComm
             <p className="mt-2 text-sm text-text-dark">Garçom responsável: {command.waiterId || "Nao informado"}</p>
           </div>
 
-          <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${statusMeta.badge}`}>
-            {statusMeta.label}
-          </span>
+          <div className="flex flex-wrap justify-end gap-2">
+            <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${statusMeta.badge}`}>
+              {statusMeta.label}
+            </span>
+            <StatusPill label={commandSyncStatus.label} tone={commandSyncStatus.tone} />
+          </div>
         </div>
 
         <div className="mt-6 grid gap-4 md:grid-cols-3">
@@ -226,6 +389,32 @@ const CommandView = ({ commandId: commandIdProp = null, embedded = false, onComm
             <p className="mt-2 text-2xl font-semibold text-text">{formatCurrency(command.total)}</p>
           </div>
         </div>
+
+        <div className="mt-4 rounded-xl border border-primary/10 bg-background p-4 text-sm text-text-dark">
+          <p className="font-medium text-text">{commandSyncStatus.description}</p>
+          {commandSyncStatus.timestamp ? (
+            <p className="mt-1 text-xs text-text-dark/80">{formatSyncTimestamp(commandSyncStatus.timestamp)}</p>
+          ) : null}
+        </div>
+
+        {commandSyncStatus.key === "failed" ? (
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-500/20 bg-red-500/8 p-4">
+            <div>
+              <p className="text-sm font-medium text-red-100">Esta comanda ficou com falha de sincronizacao.</p>
+              <p className="mt-1 text-sm text-red-100/80">
+                Reenvie apenas as operacoes desta comanda quando a conexao estiver disponivel.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleRetrySync}
+              disabled={!online || syncing || isRetryingSync}
+              className="rounded-md border border-red-400/40 px-4 py-2 text-sm font-medium text-red-100 transition hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isRetryingSync ? "Reenviando..." : "Tentar sincronizar comanda"}
+            </button>
+          </div>
+        ) : null}
 
         {canOperate && command.status === "open" && (
           <div className="mt-6 flex flex-wrap gap-3">
@@ -277,49 +466,72 @@ const CommandView = ({ commandId: commandIdProp = null, embedded = false, onComm
               Esta comanda ainda nao possui itens.
             </div>
           ) : (
-            activeItems.map((item) => (
-              <div
-                key={item._id}
-                className="grid gap-4 rounded-2xl border border-primary/10 bg-background p-4 lg:grid-cols-[1.2fr,0.8fr,0.6fr,0.9fr]"
-              >
-                <div>
-                  <p className="text-lg font-semibold text-text">{item.nameSnapshot}</p>
-                  <p className="mt-1 text-sm text-text-dark">
-                    Quantidade: {item.quantity} • Unitario: {formatCurrency(item.unitPrice)}
-                  </p>
-                  {item.notes && <p className="mt-2 text-sm text-text-dark">Obs.: {item.notes}</p>}
-                </div>
+            activeItems.map((item) => {
+              const itemSyncStatus = getSalonSyncStatus(item)
 
-                <div className="text-sm text-text-dark">
-                  <p>Tipo: {PRODUCT_TYPE_LABELS[item.productType] || "Item livre"}</p>
-                  <p>Referencia: {item.productId || "Nao vinculada"}</p>
-                </div>
+              return (
+                <div
+                  key={item._id}
+                  className="grid gap-4 rounded-2xl border border-primary/10 bg-background p-4 lg:grid-cols-[1.2fr,0.8fr,0.6fr,0.9fr]"
+                >
+                  <div>
+                    <p className="text-lg font-semibold text-text">{item.nameSnapshot}</p>
+                    <p className="mt-1 text-sm text-text-dark">
+                      Quantidade: {item.quantity} • Unitario: {formatCurrency(item.unitPrice)}
+                    </p>
+                    {itemSyncStatus.key !== "live" ? (
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        <StatusPill
+                          label={itemSyncStatus.label}
+                          tone={itemSyncStatus.tone}
+                          className="tracking-[0.18em]"
+                        />
+                        {itemSyncStatus.key === "failed" ? (
+                          <button
+                            type="button"
+                            onClick={() => handleRetryItemSync(item)}
+                            disabled={!online || syncing || retryingItemId === item._id}
+                            className="rounded-full border border-red-400/30 px-3 py-1 text-[11px] font-ui font-semibold uppercase tracking-[0.18em] text-red-100 transition hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {retryingItemId === item._id ? "Reenviando" : "Retry item"}
+                          </button>
+                        ) : null}
+                      </div>
+                    ) : null}
+                    {item.notes && <p className="mt-2 text-sm text-text-dark">Obs.: {item.notes}</p>}
+                  </div>
 
-                <div>
-                  <p className="text-sm text-text-dark">Total linha</p>
-                  <p className="mt-1 text-lg font-semibold text-text">{formatCurrency(item.quantity * item.unitPrice)}</p>
-                </div>
+                  <div className="text-sm text-text-dark">
+                    <p>Tipo: {PRODUCT_TYPE_LABELS[item.productType] || "Item livre"}</p>
+                    <p>Referencia: {item.productId || "Nao vinculada"}</p>
+                  </div>
 
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-text-dark" htmlFor={`item-status-${item._id}`}>
-                    Status
-                  </label>
-                  <select
-                    id={`item-status-${item._id}`}
-                    value={item.status}
-                    disabled={!canOperate || command.status !== "open"}
-                    onChange={(event) => handleItemStatusChange(item._id, event.target.value)}
-                    className="w-full rounded-md border border-primary bg-background px-3 py-2 text-text focus:border-secondary focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {ITEM_STATUS_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
+                  <div>
+                    <p className="text-sm text-text-dark">Total linha</p>
+                    <p className="mt-1 text-lg font-semibold text-text">{formatCurrency(item.quantity * item.unitPrice)}</p>
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-text-dark" htmlFor={`item-status-${item._id}`}>
+                      Status
+                    </label>
+                    <select
+                      id={`item-status-${item._id}`}
+                      value={item.status}
+                      disabled={!canOperate || command.status !== "open"}
+                      onChange={(event) => handleItemStatusChange(item._id, event.target.value)}
+                      className="w-full rounded-md border border-primary bg-background px-3 py-2 text-text focus:border-secondary focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {ITEM_STATUS_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
-              </div>
-            ))
+              )
+            })
           )}
         </div>
       </div>

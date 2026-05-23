@@ -1,8 +1,19 @@
 import { useEffect, useMemo, useState } from "react"
 import { FaPlus, FaTable } from "react-icons/fa"
+import { toast } from "react-hot-toast"
 import TableCard from "./TableCard"
 import { API_BASE_URL } from "../config/api"
 import { getAuthHeaders, getStoredUser, hasRole } from "../utils/auth"
+import {
+  closeOfflineTableRecord,
+  createOfflineTableRecord,
+  getOfflineTables,
+  openOfflineTableRecord,
+  queueSalonOperation,
+  saveOfflineTable,
+  saveOfflineTables,
+  sortTablesByNumber,
+} from "../utils/salonOffline"
 import AppButton from "./ui/AppButton"
 import EmptyState from "./ui/EmptyState"
 import MetricTile from "./ui/MetricTile"
@@ -37,10 +48,18 @@ const TablesGrid = ({ compact = false, limit = null }) => {
         throw new Error(data.error || data.message || "Nao foi possivel carregar as mesas")
       }
 
+      await saveOfflineTables(Array.isArray(data) ? data : [])
       setTables(Array.isArray(data) ? data : [])
     } catch (fetchError) {
       console.error("Erro ao carregar mesas:", fetchError)
-      setError(fetchError.message || "Nao foi possivel carregar as mesas.")
+      const offlineTables = await getOfflineTables().catch(() => [])
+
+      if (offlineTables.length > 0) {
+        setTables(offlineTables)
+        setError("Usando cache local do Salon. A conexao com o servidor nao respondeu.")
+      } else {
+        setError(fetchError.message || "Nao foi possivel carregar as mesas.")
+      }
     } finally {
       setIsLoading(false)
     }
@@ -74,6 +93,26 @@ const TablesGrid = ({ compact = false, limit = null }) => {
     setError("")
 
     try {
+      if (!navigator.onLine) {
+        const offlineTable = createOfflineTableRecord({
+          number: normalizedNumber,
+          name: form.name.trim(),
+          currentUser,
+        })
+
+        await saveOfflineTable(offlineTable)
+        await queueSalonOperation("table_create", {
+          localTableId: offlineTable._id,
+          number: offlineTable.number,
+          name: offlineTable.name,
+        })
+
+        setTables((currentTables) => sortTablesByNumber([...currentTables, offlineTable]))
+        setForm(emptyForm)
+        toast.success("Mesa salva offline. Ela entrara na fila operacional do Salon.")
+        return
+      }
+
       const response = await fetch(`${API_BASE_URL}/tables`, {
         method: "POST",
         headers: getAuthHeaders({ "Content-Type": "application/json" }),
@@ -92,6 +131,52 @@ const TablesGrid = ({ compact = false, limit = null }) => {
       setError(submitError.message || "Nao foi possivel criar a mesa.")
     } finally {
       setIsSubmitting(false)
+    }
+  }
+
+  const handleTableAction = async (table, action) => {
+    try {
+      if (!navigator.onLine) {
+        if (action === "close" && table.currentCommandId) {
+          throw new Error("Feche ou cancele a comanda local antes de liberar a mesa offline.")
+        }
+
+        const nextTable =
+          action === "open"
+            ? openOfflineTableRecord(table, {
+                currentUser,
+                assignedWaiterId: table.waiterId,
+              })
+            : closeOfflineTableRecord(table, { currentUser })
+
+        await saveOfflineTable(nextTable)
+        await queueSalonOperation(action === "open" ? "table_open" : "table_close", {
+          localTableId: table._id,
+          status: nextTable.status,
+          waiterId: nextTable.waiterId || null,
+        })
+
+        setTables((currentTables) =>
+          sortTablesByNumber(currentTables.map((item) => (item._id === table._id ? nextTable : item))),
+        )
+        toast.success(action === "open" ? "Mesa aberta offline." : "Mesa fechada offline.")
+        return
+      }
+
+      const response = await fetch(`${API_BASE_URL}/tables/${table._id}/${action}`, {
+        method: "POST",
+        headers: getAuthHeaders({ "Content-Type": "application/json" }),
+      })
+
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        throw new Error(data.error || data.message || "Nao foi possivel atualizar a mesa")
+      }
+
+      await fetchTables()
+    } catch (actionError) {
+      console.error(`Erro ao executar ${action} na mesa:`, actionError)
+      setError(actionError.message || "Nao foi possivel atualizar a mesa.")
     }
   }
 
@@ -152,7 +237,14 @@ const TablesGrid = ({ compact = false, limit = null }) => {
       ) : filteredTables.length > 0 ? (
         <div className={`grid gap-4 ${compact ? "md:grid-cols-2 xl:grid-cols-3" : "md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4"}`}>
           {filteredTables.map((table) => (
-            <TableCard compact={compact} currentUser={currentUser} key={table._id} onRefresh={fetchTables} table={table} />
+            <TableCard
+              compact={compact}
+              currentUser={currentUser}
+              key={table._id}
+              onRefresh={fetchTables}
+              onTableAction={handleTableAction}
+              table={table}
+            />
           ))}
         </div>
       ) : (

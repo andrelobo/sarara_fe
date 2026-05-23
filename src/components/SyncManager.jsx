@@ -3,12 +3,15 @@
 import { useEffect, useState } from "react"
 import { FaExclamationTriangle, FaSync } from "react-icons/fa"
 import Swal from "sweetalert2"
-import { getSyncQueue, syncWithServer } from "../utils/db"
-
-const API_BASE_URL = "https://sarara-be.vercel.app/api"
+import { getPendingOperationsSummary, syncWithServer } from "../services/syncService"
 
 const SyncManager = () => {
   const [pendingCount, setPendingCount] = useState(0)
+  const [pendingInventoryCount, setPendingInventoryCount] = useState(0)
+  const [pendingSalonCount, setPendingSalonCount] = useState(0)
+  const [failedCount, setFailedCount] = useState(0)
+  const [failedInventoryCount, setFailedInventoryCount] = useState(0)
+  const [failedSalonCount, setFailedSalonCount] = useState(0)
   const [isSyncing, setIsSyncing] = useState(false)
   const [lastSyncTime, setLastSyncTime] = useState(null)
 
@@ -47,8 +50,13 @@ const SyncManager = () => {
 
   const checkPendingOperations = async () => {
     try {
-      const queue = await getSyncQueue()
-      setPendingCount(queue.length)
+      const summary = await getPendingOperationsSummary()
+      setPendingInventoryCount(summary.inventory)
+      setPendingSalonCount(summary.salon)
+      setPendingCount(summary.total)
+      setFailedInventoryCount(summary.failedInventory)
+      setFailedSalonCount(summary.failedSalon)
+      setFailedCount(summary.failedTotal)
     } catch (error) {
       console.error("Erro ao verificar operacoes pendentes:", error)
     }
@@ -62,9 +70,7 @@ const SyncManager = () => {
 
     setIsSyncing(true)
     try {
-      const token = localStorage.getItem("authToken")
-      const headers = { "Content-Type": "application/json", Authorization: `Bearer ${token}` }
-      const result = await syncWithServer(API_BASE_URL, headers)
+      const result = await syncWithServer()
       setLastSyncTime(new Date())
 
       if (result.success) {
@@ -82,22 +88,58 @@ const SyncManager = () => {
     }
   }
 
-  if (pendingCount === 0 && !isSyncing) return null
+  const hasPending = pendingCount > 0
+  const hasFailed = failedCount > 0
+
+  if (!hasPending && !hasFailed && !isSyncing) return null
+
+  const buttonLabel = isSyncing
+    ? "Sincronizando..."
+    : navigator.onLine
+      ? hasPending
+        ? `Sync (${pendingCount})`
+        : `Falhas (${failedCount})`
+      : `Offline (${pendingCount || failedCount})`
 
   return (
     <div className="fixed bottom-[calc(env(safe-area-inset-bottom)+5.5rem)] right-4 z-40 lg:bottom-8 lg:right-8">
       <button
         className={[
           "flex items-center gap-2 rounded-full border px-4 py-3 text-sm font-ui font-semibold shadow-ambient transition",
-          navigator.onLine ? "border-primary/30 bg-surface text-text hover:border-primary/45" : "border-white/10 bg-surface text-text-dark",
+          navigator.onLine && hasPending
+            ? "border-primary/30 bg-surface text-text hover:border-primary/45"
+            : navigator.onLine
+              ? "border-red-400/25 bg-surface text-red-100"
+              : "border-white/10 bg-surface text-text-dark",
         ].join(" ")}
-        disabled={isSyncing || !navigator.onLine}
+        disabled={isSyncing || !navigator.onLine || !hasPending}
         onClick={handleSync}
         type="button"
       >
-        {isSyncing ? <FaSync className="animate-spin text-primary" /> : navigator.onLine ? <FaSync className="text-primary" /> : <FaExclamationTriangle className="text-primary" />}
-        <span>{isSyncing ? "Sincronizando..." : navigator.onLine ? `Sync (${pendingCount})` : `Offline (${pendingCount})`}</span>
+        {isSyncing ? (
+          <FaSync className="animate-spin text-primary" />
+        ) : navigator.onLine && hasPending ? (
+          <FaSync className="text-primary" />
+        ) : (
+          <FaExclamationTriangle className="text-primary" />
+        )}
+        <span>{buttonLabel}</span>
       </button>
+      {hasPending ? (
+        <div className="mt-2 text-center text-[11px] text-text-dark">
+          Inventario: {pendingInventoryCount} • Salon: {pendingSalonCount}
+        </div>
+      ) : null}
+      {hasFailed ? (
+        <div className="mt-2 text-center text-[11px] text-red-200/90">
+          Falhas - Inventario: {failedInventoryCount} • Salon: {failedSalonCount}
+        </div>
+      ) : null}
+      {hasFailed ? (
+        <div className="mt-1 text-center text-[11px] text-text-dark">
+          Abra a mesa, comanda ou fluxo afetado para reenviar as operacoes com falha.
+        </div>
+      ) : null}
       {lastSyncTime ? <div className="mt-2 text-center text-[11px] text-text-dark">Ultima sincronizacao: {lastSyncTime.toLocaleTimeString()}</div> : null}
     </div>
   )
