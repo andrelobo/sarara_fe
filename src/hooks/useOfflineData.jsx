@@ -159,6 +159,7 @@ export function useOfflineData(entityType) {
           await workerRequest("addToSyncQueue", {
             type: "create",
             entity: apiEndpoint,
+            localEntityId: tempItem._id,
             data: item,
             createdAt: new Date().toISOString(),
           })
@@ -320,4 +321,3 @@ export function useOfflineData(entityType) {
     remove: deleteItem,
   }
 }
-

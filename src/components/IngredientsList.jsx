@@ -15,9 +15,11 @@ import { useOffline } from "../context/OfflineContext"
 import {
   clearSyncQueue,
   getAllData,
+  getFailedInventoryEntityIds,
   getInventorySyncStatusSummary,
   getSyncQueue,
   retrySyncOperationsByEntity,
+  retrySyncOperationsByItem,
   saveData,
   saveSyncQueue,
 } from "../utils/db"
@@ -35,7 +37,9 @@ const IngredientsList = () => {
   const [searchTerm, setSearchTerm] = useState("")
   const [pendingSyncCount, setPendingSyncCount] = useState(0)
   const [failedSyncCount, setFailedSyncCount] = useState(0)
+  const [failedItemIds, setFailedItemIds] = useState([])
   const [isRetryingFailedSync, setIsRetryingFailedSync] = useState(false)
+  const [retryingItemId, setRetryingItemId] = useState(null)
   const { online, syncing, syncData } = useOffline()
   const currentUser = getStoredUser()
   const canManageInventory = hasRole(currentUser, ["admin", "manager"])
@@ -90,9 +94,13 @@ const IngredientsList = () => {
 
   const refreshSyncSummary = useCallback(async () => {
     try {
-      const summary = await getInventorySyncStatusSummary("ingredients")
+      const [summary, failedIds] = await Promise.all([
+        getInventorySyncStatusSummary("ingredients"),
+        getFailedInventoryEntityIds("ingredients"),
+      ])
       setPendingSyncCount(summary.pending)
       setFailedSyncCount(summary.failed)
+      setFailedItemIds(failedIds)
     } catch (currentError) {
       console.error("Erro ao verificar a fila de ingredientes:", currentError)
     }
@@ -225,6 +233,41 @@ const IngredientsList = () => {
     }
   }, [fetchIngredients, handleError, online, refreshSyncSummary, syncData])
 
+  const handleRetryItemSync = useCallback(
+    async (ingredient) => {
+      if (!online) {
+        Swal.fire("Offline", "Conecte-se novamente para reenviar este ingrediente.", "warning")
+        return
+      }
+
+      setRetryingItemId(ingredient._id)
+
+      try {
+        const { retried } = await retrySyncOperationsByItem("ingredients", ingredient)
+
+        if (retried === 0) {
+          Swal.fire("Fila limpa", "Nao havia falhas deste ingrediente para reenviar.", "info")
+          return
+        }
+
+        const result = await syncData({ silent: true })
+        await fetchIngredients()
+        await refreshSyncSummary()
+
+        if (result?.success) {
+          Swal.fire("Reenviado", "O ingrediente foi reenviado para sincronizacao.", "success")
+        } else {
+          Swal.fire("Atenção", result?.message || "O ingrediente foi reenfileirado, mas ainda existem erros.", "warning")
+        }
+      } catch (currentError) {
+        handleError(currentError, "Nao foi possivel reenviar este ingrediente.")
+      } finally {
+        setRetryingItemId(null)
+      }
+    },
+    [fetchIngredients, handleError, online, refreshSyncSummary, syncData],
+  )
+
   const filteredIngredients = useMemo(() => {
     const normalizedTerm = searchTerm.trim().toLowerCase()
 
@@ -312,6 +355,7 @@ const IngredientsList = () => {
           ) : currentIngredients.length > 0 ? (
             currentIngredients.map((ingredient) => {
               const isLowStock = Number(ingredient.quantity) <= 5
+              const hasFailedSync = failedItemIds.includes(ingredient._id)
 
               return (
                 <OperationalRow
@@ -321,6 +365,17 @@ const IngredientsList = () => {
                       <>
                         <AppButton icon={<FaEdit />} onClick={() => setEditingIngredient(ingredient)} size="sm" variant="ghost">Editar</AppButton>
                         <AppButton icon={<FaTrash />} onClick={() => handleDeleteIngredient(ingredient._id)} size="sm" variant="danger">Excluir</AppButton>
+                        {hasFailedSync ? (
+                          <AppButton
+                            icon={<FaSyncAlt />}
+                            onClick={() => handleRetryItemSync(ingredient)}
+                            size="sm"
+                            variant="danger"
+                            disabled={!online || syncing || retryingItemId === ingredient._id}
+                          >
+                            {retryingItemId === ingredient._id ? "Reenviando" : "Retry item"}
+                          </AppButton>
+                        ) : null}
                       </>
                     ) : null
                   }
@@ -330,9 +385,13 @@ const IngredientsList = () => {
                       <FaCarrot />
                     </div>
                   }
-                  meta={[`${ingredient.quantity} ${ingredient.unit}`, offlineMode ? "Fila offline habilitada" : "Sincronizado", isLowStock ? "Reposicao recomendada" : "Disponivel"]}
-                  status={isLowStock ? "Baixo" : "Disponivel"}
-                  statusTone={isLowStock ? "warning" : "success"}
+                  meta={[
+                    `${ingredient.quantity} ${ingredient.unit}`,
+                    hasFailedSync ? "Falha na fila" : offlineMode ? "Fila offline habilitada" : "Sincronizado",
+                    isLowStock ? "Reposicao recomendada" : "Disponivel",
+                  ]}
+                  status={hasFailedSync ? "Falha sync" : isLowStock ? "Baixo" : "Disponivel"}
+                  statusTone={hasFailedSync ? "danger" : isLowStock ? "warning" : "success"}
                   subtitle="Leitura de quantidade e acao rapida para manter preparo e bar abastecidos."
                   title={ingredient.name}
                 />

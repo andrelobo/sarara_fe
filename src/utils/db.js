@@ -78,6 +78,56 @@ export async function initDB() {
   return db
 }
 
+// Funções específicas por entidade (wrappers para API mais limpa)
+export async function getAllBeverages() {
+  const db = await initDB()
+  return db.getAll(BEVERAGES_STORE)
+}
+
+export async function getBeverage(id) {
+  const db = await initDB()
+  return db.get(BEVERAGES_STORE, id)
+}
+
+export async function saveBeverage(beverage) {
+  const db = await initDB()
+  return db.put(BEVERAGES_STORE, beverage)
+}
+
+export async function deleteBeverage(id) {
+  const db = await initDB()
+  return db.delete(BEVERAGES_STORE, id)
+}
+
+export async function getAllIngredients() {
+  const db = await initDB()
+  return db.getAll(INGREDIENTS_STORE)
+}
+
+export async function getIngredient(id) {
+  const db = await initDB()
+  return db.get(INGREDIENTS_STORE, id)
+}
+
+export async function saveIngredient(ingredient) {
+  const db = await initDB()
+  return db.put(INGREDIENTS_STORE, ingredient)
+}
+
+export async function deleteIngredient(id) {
+  const db = await initDB()
+  return db.delete(INGREDIENTS_STORE, id)
+}
+
+export async function addToSyncQueue(operation) {
+  const db = await initDB()
+  return db.add(SYNC_STORE, {
+    ...operation,
+    createdAt: new Date().toISOString(),
+    status: "pending",
+  })
+}
+
 // Funções para gerenciar dados genéricos
 export async function saveData(storeName, data) {
   const db = await initDB()
@@ -168,6 +218,25 @@ export function operationTargetsInventoryEntity(operation, entityType) {
   return false
 }
 
+function getInventoryOperationReferenceIds(operation) {
+  return [
+    operation?.entityId,
+    operation?.localEntityId,
+    operation?.data?._id,
+    operation?.type === "delete" ? operation?.id : null,
+  ].filter(Boolean)
+}
+
+export function operationTargetsInventoryItem(operation, entityType, entityIdsInput) {
+  const entityIds = entityIdsInput instanceof Set ? entityIdsInput : new Set(entityIdsInput || [])
+
+  if (entityIds.size === 0 || !operationTargetsInventoryEntity(operation, entityType)) {
+    return false
+  }
+
+  return getInventoryOperationReferenceIds(operation).some((value) => entityIds.has(value))
+}
+
 export async function getInventorySyncStatusSummary(entityType) {
   const operations = await getAllData(SYNC_STORE)
   const relevantOperations = operations.filter((operation) => operationTargetsInventoryEntity(operation, entityType))
@@ -179,10 +248,41 @@ export async function getInventorySyncStatusSummary(entityType) {
   }
 }
 
+export async function getFailedInventoryEntityIds(entityType) {
+  const operations = await getAllData(SYNC_STORE)
+  const failedOperations = operations.filter(
+    (operation) => operation.status === "failed" && operationTargetsInventoryEntity(operation, entityType),
+  )
+
+  return [...new Set(failedOperations.flatMap((operation) => getInventoryOperationReferenceIds(operation)))]
+}
+
 export async function retrySyncOperationsByEntity(entityType) {
   const operations = await getAllData(SYNC_STORE)
   const failedOperations = operations.filter(
     (operation) => operation.status === "failed" && operationTargetsInventoryEntity(operation, entityType),
+  )
+
+  if (failedOperations.length === 0) {
+    return { retried: 0 }
+  }
+
+  for (const operation of failedOperations) {
+    await updateSyncQueueItem(operation.id, {
+      status: "pending",
+      error: null,
+      lastAttempt: null,
+    })
+  }
+
+  return { retried: failedOperations.length }
+}
+
+export async function retrySyncOperationsByItem(entityType, entity) {
+  const entityIds = new Set([entity?._id].filter(Boolean))
+  const operations = await getAllData(SYNC_STORE)
+  const failedOperations = operations.filter(
+    (operation) => operation.status === "failed" && operationTargetsInventoryItem(operation, entityType, entityIds),
   )
 
   if (failedOperations.length === 0) {

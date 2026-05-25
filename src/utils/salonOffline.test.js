@@ -81,6 +81,35 @@ test("offline command items recalculate totals and cancelled commands zero the c
   assert.equal(normalizedCancelled.total, 10)
 })
 
+test("finalizeOfflineCommandRecord keeps structured payments when closing a command", () => {
+  const command = addOfflineCommandItemRecord(
+    createOfflineCommandRecord({
+      tableId: "table-9",
+      serviceTax: 0,
+      currentUser: { _id: "waiter-2", role: "waiter" },
+      assignedWaiterId: "",
+    }),
+    { nameSnapshot: "Gin Tonic", quantity: 2, unitPrice: 21, notes: "", productType: "manual", productId: null },
+    { _id: "waiter-2" },
+  )
+
+  const closed = finalizeOfflineCommandRecord(command, "close", { _id: "waiter-2" }, {
+    payments: [
+      {
+        method: "pix",
+        amount: 42,
+        referenceCode: "pix-42",
+      },
+    ],
+  })
+
+  assert.equal(closed.status, "closed")
+  assert.equal(closed.payments.length, 1)
+  assert.equal(closed.payments[0].method, "pix")
+  assert.equal(closed.payments[0].amount, 42)
+  assert.equal(closed.payments[0].receivedBy, "waiter-2")
+})
+
 test("getSalonSyncStatus exposes local pending records clearly for the UI", () => {
   const offlineTable = createOfflineTableRecord({ number: 12, name: "Varanda", currentUser: { _id: "admin-1" } })
   const syncStatus = getSalonSyncStatus(offlineTable)

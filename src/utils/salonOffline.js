@@ -184,6 +184,18 @@ export function recalculateOfflineCommandTotals(command) {
   }
 }
 
+function normalizeOfflinePaymentRecord(payment, fallbackUserId, fallbackPaidAt) {
+  return {
+    method: typeof payment?.method === "string" ? payment.method.trim().toLowerCase() : "cash",
+    amount: Number(payment?.amount || 0),
+    paidAt: payment?.paidAt || fallbackPaidAt,
+    receivedBy: payment?.receivedBy || fallbackUserId || null,
+    machineLabel: typeof payment?.machineLabel === "string" ? payment.machineLabel.trim() : "",
+    referenceCode: typeof payment?.referenceCode === "string" ? payment.referenceCode.trim() : "",
+    notes: typeof payment?.notes === "string" ? payment.notes.trim() : "",
+  }
+}
+
 export function createOfflineTableRecord({ number, name, currentUser }) {
   const now = new Date().toISOString()
   return {
@@ -353,9 +365,15 @@ export function updateOfflineCommandItemRecord(command, itemId, updates, current
   })
 }
 
-export function finalizeOfflineCommandRecord(command, action, currentUser) {
+export function finalizeOfflineCommandRecord(command, action, currentUser, options = {}) {
   const closedAt = new Date().toISOString()
   const nextStatus = action === "cancel" ? "cancelled" : "closed"
+  const normalizedPayments =
+    action === "close"
+      ? (Array.isArray(options.payments) ? options.payments : []).map((payment) =>
+          normalizeOfflinePaymentRecord(payment, currentUser?._id || null, closedAt),
+        )
+      : []
   const nextItems =
     action === "cancel"
       ? (Array.isArray(command?.items) ? command.items : []).map((item) => ({
@@ -373,6 +391,7 @@ export function finalizeOfflineCommandRecord(command, action, currentUser) {
     items: nextItems,
     status: nextStatus,
     closedAt,
+    payments: normalizedPayments,
     pendingSync: true,
     syncMetadata: buildPendingSyncMetadata(command?.syncMetadata),
     updatedAt: closedAt,
@@ -882,7 +901,7 @@ async function syncSingleSalonOperation(operation, apiBaseUrl, headers, mappings
 
     case "command_close":
     case "command_cancel": {
-      const { localCommandId, tableId } = payload
+      const { localCommandId, tableId, payments = [] } = payload
       const { localId, record } = await resolveOfflineCommandForSync(localCommandId, mappings.command)
       const serverCommandId = resolveServerId(record, localCommandId, mappings.command)
       const response = await fetch(
@@ -890,6 +909,7 @@ async function syncSingleSalonOperation(operation, apiBaseUrl, headers, mappings
         {
           method: "POST",
           headers,
+          body: operation.action === "command_close" ? JSON.stringify({ payments }) : undefined,
         },
       )
 
