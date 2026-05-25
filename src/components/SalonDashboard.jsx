@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom"
 import { FaConciergeBell, FaGlassMartiniAlt, FaReceipt, FaTable } from "react-icons/fa"
+import ShiftPanel from "./ShiftPanel"
 import TablesGrid from "./TablesGrid"
 import AppButton from "./ui/AppButton"
 import MetricTile from "./ui/MetricTile"
@@ -28,6 +29,8 @@ const SalonDashboard = () => {
       </section>
 
       <TablesGrid compact limit={6} />
+
+      <ShiftPanel />
 
       <div className="flex justify-end">
         <Link className="text-sm text-text-dark transition hover:text-primary" to="/salon/tables">

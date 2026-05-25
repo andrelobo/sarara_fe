@@ -17,7 +17,12 @@ import SearchBar from "./ui/SearchBar"
 import { useOffline } from "../context/OfflineContext"
 import { useOfflineData } from "../hooks/useOfflineData"
 import { getStoredUser, hasRole } from "../utils/auth"
-import { getInventorySyncStatusSummary, retrySyncOperationsByEntity } from "../utils/db"
+import {
+  getFailedInventoryEntityIds,
+  getInventorySyncStatusSummary,
+  retrySyncOperationsByEntity,
+  retrySyncOperationsByItem,
+} from "../utils/db"
 
 const ITEMS_PER_PAGE = 10
 
@@ -41,7 +46,9 @@ const BeveragesList = () => {
   const [searchTerm, setSearchTerm] = useState("")
   const [pendingSyncCount, setPendingSyncCount] = useState(0)
   const [failedSyncCount, setFailedSyncCount] = useState(0)
+  const [failedItemIds, setFailedItemIds] = useState([])
   const [isRetryingFailedSync, setIsRetryingFailedSync] = useState(false)
+  const [retryingItemId, setRetryingItemId] = useState(null)
 
   const handleError = useCallback((currentError, defaultMessage) => {
     console.error("Erro:", currentError)
@@ -107,9 +114,13 @@ const BeveragesList = () => {
 
   const refreshSyncSummary = useCallback(async () => {
     try {
-      const summary = await getInventorySyncStatusSummary("beverages")
+      const [summary, failedIds] = await Promise.all([
+        getInventorySyncStatusSummary("beverages"),
+        getFailedInventoryEntityIds("beverages"),
+      ])
       setPendingSyncCount(summary.pending)
       setFailedSyncCount(summary.failed)
+      setFailedItemIds(failedIds)
     } catch (currentError) {
       console.error("Erro ao verificar a fila de bebidas:", currentError)
     }
@@ -146,6 +157,41 @@ const BeveragesList = () => {
       setIsRetryingFailedSync(false)
     }
   }, [fetchBeverages, handleError, online, refreshSyncSummary, syncData])
+
+  const handleRetryItemSync = useCallback(
+    async (beverage) => {
+      if (!online) {
+        toast.error("Conecte-se novamente para reenviar esta bebida.")
+        return
+      }
+
+      setRetryingItemId(beverage._id)
+
+      try {
+        const { retried } = await retrySyncOperationsByItem("beverages", beverage)
+
+        if (retried === 0) {
+          toast("Nao havia falhas desta bebida para reenviar.")
+          return
+        }
+
+        const result = await syncData({ silent: true })
+        await fetchBeverages()
+        await refreshSyncSummary()
+
+        if (result?.success) {
+          toast.success("Bebida reenviada para sincronizacao.")
+        } else {
+          toast.error(result?.message || "A bebida foi reenfileirada, mas ainda existem erros.")
+        }
+      } catch (currentError) {
+        handleError(currentError, "Nao foi possivel reenviar esta bebida.")
+      } finally {
+        setRetryingItemId(null)
+      }
+    },
+    [fetchBeverages, handleError, online, refreshSyncSummary, syncData],
+  )
 
   useEffect(() => {
     refreshSyncSummary()
@@ -228,6 +274,7 @@ const BeveragesList = () => {
             currentBeverages.map((beverage) => {
               const isOfflineItem = String(beverage._id).startsWith("temp_")
               const isLowStock = Number(beverage.quantity) <= 5
+              const hasFailedSync = failedItemIds.includes(beverage._id)
 
               return (
                 <OperationalRow
@@ -247,6 +294,17 @@ const BeveragesList = () => {
                           Excluir
                         </AppButton>
                       ) : null}
+                      {canManageInventory && hasFailedSync ? (
+                        <AppButton
+                          icon={<FaSyncAlt />}
+                          onClick={() => handleRetryItemSync(beverage)}
+                          size="sm"
+                          variant="danger"
+                          disabled={!online || syncing || retryingItemId === beverage._id}
+                        >
+                          {retryingItemId === beverage._id ? "Reenviando" : "Retry item"}
+                        </AppButton>
+                      ) : null}
                     </>
                   }
                   eyebrow={beverage.category}
@@ -257,11 +315,11 @@ const BeveragesList = () => {
                   }
                   meta={[
                     `${beverage.quantity} ${beverage.unit}`,
-                    isOfflineItem ? "Salvo localmente" : "Sincronizado",
+                    hasFailedSync ? "Falha na fila" : isOfflineItem ? "Salvo localmente" : "Sincronizado",
                     isLowStock ? "Reposicao recomendada" : "Estoque saudavel",
                   ]}
-                  status={isOfflineItem ? "Offline" : isLowStock ? "Baixo" : "Disponivel"}
-                  statusTone={isOfflineItem ? "offline" : isLowStock ? "warning" : "success"}
+                  status={hasFailedSync ? "Falha sync" : isOfflineItem ? "Offline" : isLowStock ? "Baixo" : "Disponivel"}
+                  statusTone={hasFailedSync ? "danger" : isOfflineItem ? "offline" : isLowStock ? "warning" : "success"}
                   subtitle="Acoes rapidas ao alcance do polegar para manter o ritmo da casa."
                   title={beverage.name}
                 />

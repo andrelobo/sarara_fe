@@ -40,11 +40,46 @@ const PRODUCT_TYPE_LABELS = {
   manual: "Item livre",
 }
 
+const PAYMENT_METHOD_OPTIONS = [
+  { value: "cash", label: "Dinheiro" },
+  { value: "pix", label: "Pix" },
+  { value: "debit", label: "Debito" },
+  { value: "credit", label: "Credito" },
+  { value: "voucher", label: "Voucher" },
+]
+
+const PAYMENT_METHOD_LABELS = PAYMENT_METHOD_OPTIONS.reduce((accumulator, option) => {
+  accumulator[option.value] = option.label
+  return accumulator
+}, {})
+
 const formatCurrency = (value) =>
   Number(value || 0).toLocaleString("pt-BR", {
     style: "currency",
     currency: "BRL",
   })
+
+const roundMoneyValue = (value) => Math.round(Number(value || 0) * 100) / 100
+
+const buildDraftId = () => `payment_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+
+const createPaymentDraft = (amount = 0) => ({
+  id: buildDraftId(),
+  method: "cash",
+  amount: Number(amount || 0) > 0 ? roundMoneyValue(amount).toFixed(2) : "",
+  machineLabel: "",
+  referenceCode: "",
+  notes: "",
+})
+
+const buildPaymentDraftFromRecord = (payment) => ({
+  id: payment?._id || buildDraftId(),
+  method: payment?.method || "cash",
+  amount: Number(payment?.amount || 0) > 0 ? roundMoneyValue(payment.amount).toFixed(2) : "",
+  machineLabel: payment?.machineLabel || "",
+  referenceCode: payment?.referenceCode || "",
+  notes: payment?.notes || "",
+})
 
 const formatSyncTimestamp = (timestamp) => {
   if (!timestamp) {
@@ -69,6 +104,7 @@ const CommandView = ({ commandId: commandIdProp = null, embedded = false, onComm
   const [isFinishing, setIsFinishing] = useState(false)
   const [isRetryingSync, setIsRetryingSync] = useState(false)
   const [retryingItemId, setRetryingItemId] = useState(null)
+  const [paymentDrafts, setPaymentDrafts] = useState([])
 
   const statusMeta = COMMAND_STATUS_META[command?.status] || COMMAND_STATUS_META.open
   const commandSyncStatus = getSalonSyncStatus(command)
@@ -119,7 +155,63 @@ const CommandView = ({ commandId: commandIdProp = null, embedded = false, onComm
     fetchCommand()
   }, [commandId])
 
+  useEffect(() => {
+    if (!command) {
+      return
+    }
+
+    if (Array.isArray(command.payments) && command.payments.length > 0) {
+      setPaymentDrafts(command.payments.map(buildPaymentDraftFromRecord))
+      return
+    }
+
+    if (command.status === "open" && Number(command.total || 0) > 0) {
+      setPaymentDrafts([createPaymentDraft(command.total)])
+      return
+    }
+
+    setPaymentDrafts([])
+  }, [command?._id, command?.status, command?.total, command?.payments])
+
   const activeItems = command?.items || []
+  const paymentTotal = roundMoneyValue(
+    paymentDrafts.reduce((sum, payment) => sum + Number(payment.amount || 0), 0),
+  )
+  const commandTotal = roundMoneyValue(command?.total || 0)
+  const paymentDifference = roundMoneyValue(paymentTotal - commandTotal)
+  const validPaymentDrafts = paymentDrafts.filter((payment) => Number(payment.amount || 0) > 0)
+  const hasInvalidPaymentAmount = paymentDrafts.some((payment) => Number(payment.amount || 0) <= 0)
+  const isPaymentBalanced = commandTotal === 0 ? true : paymentTotal === commandTotal
+
+  const updatePaymentDraft = (draftId, field, value) => {
+    setPaymentDrafts((currentDrafts) =>
+      currentDrafts.map((draft) =>
+        draft.id === draftId
+          ? {
+              ...draft,
+              [field]: value,
+            }
+          : draft,
+      ),
+    )
+  }
+
+  const addPaymentDraft = () => {
+    setPaymentDrafts((currentDrafts) => [...currentDrafts, createPaymentDraft(0)])
+  }
+
+  const removePaymentDraft = (draftId) => {
+    setPaymentDrafts((currentDrafts) => currentDrafts.filter((draft) => draft.id !== draftId))
+  }
+
+  const buildPaymentsPayload = () =>
+    validPaymentDrafts.map((payment) => ({
+      method: payment.method,
+      amount: roundMoneyValue(payment.amount),
+      machineLabel: payment.machineLabel.trim(),
+      referenceCode: payment.referenceCode.trim(),
+      notes: payment.notes.trim(),
+    }))
 
   const handleAddItem = async (payload) => {
     setIsSubmitting(true)
@@ -208,8 +300,18 @@ const CommandView = ({ commandId: commandIdProp = null, embedded = false, onComm
     setIsFinishing(true)
 
     try {
+      const paymentsPayload = action === "close" ? buildPaymentsPayload() : []
+
+      if (action === "close" && commandTotal > 0) {
+        if (paymentsPayload.length === 0 || hasInvalidPaymentAmount || !isPaymentBalanced) {
+          throw new Error("Informe pagamentos validos que fechem exatamente o total da comanda.")
+        }
+      }
+
       if (!navigator.onLine) {
-        const updatedCommand = finalizeOfflineCommandRecord(command, action, currentUser)
+        const updatedCommand = finalizeOfflineCommandRecord(command, action, currentUser, {
+          payments: paymentsPayload,
+        })
         const relatedTable = await getOfflineTable(command.tableId)
         const updatedTable = relatedTable ? closeOfflineTableRecord(relatedTable, { currentUser }) : null
 
@@ -220,6 +322,7 @@ const CommandView = ({ commandId: commandIdProp = null, embedded = false, onComm
         await queueSalonOperation(action === "close" ? "command_close" : "command_cancel", {
           localCommandId: commandId,
           tableId: command.tableId,
+          payments: paymentsPayload,
         })
 
         setCommand(updatedCommand)
@@ -233,6 +336,7 @@ const CommandView = ({ commandId: commandIdProp = null, embedded = false, onComm
         headers: getAuthHeaders({
           "Content-Type": "application/json",
         }),
+        body: action === "close" ? JSON.stringify({ payments: paymentsPayload }) : undefined,
       })
 
       const data = await response.json()
@@ -390,6 +494,167 @@ const CommandView = ({ commandId: commandIdProp = null, embedded = false, onComm
           </div>
         </div>
 
+        <div className="mt-6 rounded-2xl border border-primary/10 bg-background p-5">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-text-dark">Recebimento</p>
+              <h3 className="mt-2 text-lg font-semibold text-text">
+                {command.status === "open" ? "Fechamento da comanda" : "Pagamentos registrados"}
+              </h3>
+              <p className="mt-1 text-sm text-text-dark">
+                {command.status === "open"
+                  ? "Registre como o garçom recebeu esta comanda antes de concluir o fechamento."
+                  : "Base inicial para conferencia do gerente, caixa e comissao diaria."}
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-primary/10 bg-background-light px-4 py-3 text-right">
+              <p className="text-[11px] uppercase tracking-[0.2em] text-text-dark">Total informado</p>
+              <p className="mt-1 text-lg font-semibold text-text">{formatCurrency(paymentTotal)}</p>
+              <p className={`mt-1 text-xs ${isPaymentBalanced ? "text-emerald-300" : "text-amber-300"}`}>
+                {isPaymentBalanced
+                  ? "Fechamento conciliado"
+                  : `Diferenca: ${formatCurrency(paymentDifference)}`}
+              </p>
+            </div>
+          </div>
+
+          {command.status === "open" ? (
+            <>
+              <div className="mt-5 space-y-3">
+                {paymentDrafts.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-primary/20 bg-background-light px-4 py-5 text-sm text-text-dark">
+                    Esta comanda ainda nao tem pagamentos informados.
+                  </div>
+                ) : (
+                  paymentDrafts.map((payment, index) => (
+                    <div
+                      key={payment.id}
+                      className="grid gap-3 rounded-2xl border border-primary/10 bg-background-light p-4 lg:grid-cols-[0.9fr,0.8fr,0.9fr,0.9fr,1.2fr,auto]"
+                    >
+                      <label className="space-y-2 text-sm text-text-dark">
+                        <span className="block text-xs uppercase tracking-[0.16em]">Metodo</span>
+                        <select
+                          value={payment.method}
+                          onChange={(event) => updatePaymentDraft(payment.id, "method", event.target.value)}
+                          className="w-full rounded-md border border-primary/15 bg-background px-3 py-2 text-text focus:border-secondary focus:outline-none"
+                        >
+                          {PAYMENT_METHOD_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+
+                      <label className="space-y-2 text-sm text-text-dark">
+                        <span className="block text-xs uppercase tracking-[0.16em]">Valor</span>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={payment.amount}
+                          onChange={(event) => updatePaymentDraft(payment.id, "amount", event.target.value)}
+                          className="w-full rounded-md border border-primary/15 bg-background px-3 py-2 text-text focus:border-secondary focus:outline-none"
+                          placeholder="0,00"
+                        />
+                      </label>
+
+                      <label className="space-y-2 text-sm text-text-dark">
+                        <span className="block text-xs uppercase tracking-[0.16em]">Maquina</span>
+                        <input
+                          type="text"
+                          value={payment.machineLabel}
+                          onChange={(event) => updatePaymentDraft(payment.id, "machineLabel", event.target.value)}
+                          className="w-full rounded-md border border-primary/15 bg-background px-3 py-2 text-text focus:border-secondary focus:outline-none"
+                          placeholder="Stone 1"
+                        />
+                      </label>
+
+                      <label className="space-y-2 text-sm text-text-dark">
+                        <span className="block text-xs uppercase tracking-[0.16em]">Referencia</span>
+                        <input
+                          type="text"
+                          value={payment.referenceCode}
+                          onChange={(event) => updatePaymentDraft(payment.id, "referenceCode", event.target.value)}
+                          className="w-full rounded-md border border-primary/15 bg-background px-3 py-2 text-text focus:border-secondary focus:outline-none"
+                          placeholder="NSU / TXID"
+                        />
+                      </label>
+
+                      <label className="space-y-2 text-sm text-text-dark">
+                        <span className="block text-xs uppercase tracking-[0.16em]">Observacao</span>
+                        <input
+                          type="text"
+                          value={payment.notes}
+                          onChange={(event) => updatePaymentDraft(payment.id, "notes", event.target.value)}
+                          className="w-full rounded-md border border-primary/15 bg-background px-3 py-2 text-text focus:border-secondary focus:outline-none"
+                          placeholder="Detalhe opcional"
+                        />
+                      </label>
+
+                      <div className="flex items-end justify-end">
+                        <button
+                          type="button"
+                          onClick={() => removePaymentDraft(payment.id)}
+                          disabled={paymentDrafts.length === 1 && index === 0}
+                          className="rounded-md border border-primary/15 px-3 py-2 text-sm font-medium text-text-dark transition hover:border-primary/30 hover:text-text disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          Remover
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={addPaymentDraft}
+                  className="rounded-md border border-primary/20 px-4 py-2 text-sm font-medium text-text transition hover:border-primary/40 hover:bg-background-light"
+                >
+                  Adicionar pagamento
+                </button>
+                <p className={`text-sm ${isPaymentBalanced ? "text-emerald-300" : "text-amber-300"}`}>
+                  {commandTotal === 0
+                    ? "Comanda sem valor para receber."
+                    : isPaymentBalanced
+                      ? "Os pagamentos fecham o total da comanda."
+                      : "Os pagamentos precisam fechar exatamente o total da comanda."}
+                </p>
+              </div>
+            </>
+          ) : (
+            <div className="mt-5 space-y-3">
+              {Array.isArray(command.payments) && command.payments.length > 0 ? (
+                command.payments.map((payment) => (
+                  <div
+                    key={payment._id || `${payment.method}-${payment.paidAt}`}
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/10 bg-background-light px-4 py-3"
+                  >
+                    <div>
+                      <p className="text-sm font-medium text-text">
+                        {PAYMENT_METHOD_LABELS[payment.method] || payment.method}
+                      </p>
+                      <p className="mt-1 text-xs text-text-dark">
+                        {payment.referenceCode ? `Ref. ${payment.referenceCode}` : "Sem referencia"}
+                        {payment.machineLabel ? ` • ${payment.machineLabel}` : ""}
+                      </p>
+                      {payment.notes ? <p className="mt-1 text-xs text-text-dark">{payment.notes}</p> : null}
+                    </div>
+                    <p className="text-lg font-semibold text-text">{formatCurrency(payment.amount)}</p>
+                  </div>
+                ))
+              ) : (
+                <div className="rounded-xl border border-dashed border-primary/20 bg-background-light px-4 py-5 text-sm text-text-dark">
+                  Nenhum pagamento foi registrado nesta comanda.
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
         <div className="mt-4 rounded-xl border border-primary/10 bg-background p-4 text-sm text-text-dark">
           <p className="font-medium text-text">{commandSyncStatus.description}</p>
           {commandSyncStatus.timestamp ? (
@@ -428,7 +693,7 @@ const CommandView = ({ commandId: commandIdProp = null, embedded = false, onComm
             <button
               type="button"
               onClick={() => handleCommandAction("close")}
-              disabled={isFinishing}
+              disabled={isFinishing || (commandTotal > 0 && (validPaymentDrafts.length === 0 || hasInvalidPaymentAmount || !isPaymentBalanced))}
               className="rounded-md bg-primary px-5 py-2 text-sm font-medium text-background transition hover:bg-primary-light disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isFinishing ? "Processando..." : "Fechar comanda"}
