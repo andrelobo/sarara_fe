@@ -78,6 +78,56 @@ export async function initDB() {
   return db
 }
 
+// Funções específicas por entidade (wrappers para API mais limpa)
+export async function getAllBeverages() {
+  const db = await initDB()
+  return db.getAll(BEVERAGES_STORE)
+}
+
+export async function getBeverage(id) {
+  const db = await initDB()
+  return db.get(BEVERAGES_STORE, id)
+}
+
+export async function saveBeverage(beverage) {
+  const db = await initDB()
+  return db.put(BEVERAGES_STORE, beverage)
+}
+
+export async function deleteBeverage(id) {
+  const db = await initDB()
+  return db.delete(BEVERAGES_STORE, id)
+}
+
+export async function getAllIngredients() {
+  const db = await initDB()
+  return db.getAll(INGREDIENTS_STORE)
+}
+
+export async function getIngredient(id) {
+  const db = await initDB()
+  return db.get(INGREDIENTS_STORE, id)
+}
+
+export async function saveIngredient(ingredient) {
+  const db = await initDB()
+  return db.put(INGREDIENTS_STORE, ingredient)
+}
+
+export async function deleteIngredient(id) {
+  const db = await initDB()
+  return db.delete(INGREDIENTS_STORE, id)
+}
+
+export async function addToSyncQueue(operation) {
+  const db = await initDB()
+  return db.add(SYNC_STORE, {
+    ...operation,
+    createdAt: new Date().toISOString(),
+    status: "pending",
+  })
+}
+
 // Funções para gerenciar dados genéricos
 export async function saveData(storeName, data) {
   const db = await initDB()
