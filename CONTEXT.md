@@ -1,6 +1,6 @@
 # BarChef Frontend Context
 
-Last updated: 2026-05-23
+Last updated: 2026-05-25
 
 ## Identity
 
@@ -86,9 +86,9 @@ Routes currently wired in `src/App.jsx`:
 
 ## Offline-First Pieces
 
-- IndexedDB helpers in `src/utils/db.js`
-- Secondary IndexedDB helper layer in `src/services/db.js`
+- IndexedDB helpers in `src/utils/db.js` (canonical offline layer)
 - Shared web worker for local persistence in `src/workers/dbWorker.js`
+- `src/services/db.js` was removed on 2026-05-25 (E1) — was dead code (0 imports), `utils/db.js` is the single offline layer
 - Offline context provider in `src/context/OfflineContext.jsx`
 - Sync UI in `src/components/SyncManager.jsx`
 - Shared sync orchestration now runs through `src/services/syncService.js`
@@ -154,6 +154,10 @@ Routes currently wired in `src/App.jsx`:
 - Build command in `package.json`: `yarn build`
 - Vite PWA plugin is configured in `vite.config.js`
 - Vercel config rewrites all routes to `index.html`
+- Yarn Workspaces root at parent `BarChef/package.json`:
+  - workspace name: `front_barava`
+  - `yarn test:fe` and `yarn build:fe` work from root
+  - root files are filesystem-only (not git-tracked)
 
 ## Important Current Notes
 
@@ -204,9 +208,7 @@ Routes currently wired in `src/App.jsx`:
 
 ## Known Risks In Code
 
-- Medium: offline logic is split across two different storage/sync stacks:
-  - `src/utils/db.js` + worker-based flow
-  - `src/services/db.js` + `src/services/syncService.js`
+- Low: offline sync is unified under `src/utils/db.js` + `src/utils/salonOffline.js`, orchestrated by `src/services/syncService.js`
 - Medium: Salon now has local persistence and replay through `salon-queue`, but there is still no advanced conflict policy for concurrent online/offline edits.
 - Medium: failed Salon operations can now be retried from table/command detail and from an individual command item, but there is still no dedicated conflict-resolution UI when the backend rejects the replay for business reasons.
 - Medium: inventory failures now have focused retry at the area and item level, but there is still no dedicated conflict-resolution UI when the backend keeps rejecting the replay and the operator needs to understand exactly why.
@@ -242,6 +244,8 @@ Routes currently wired in `src/App.jsx`:
 - Local `yarn test` and `yarn build` both completed successfully on 2026-05-23 after adding item-level retry actions for failed inventory rows
 - Local `yarn test` and `yarn build` both completed successfully on 2026-05-23 after wiring structured payments into command close and the offline Salon replay path
 - Local `yarn test` and `yarn build` both completed successfully on 2026-05-24 after embedding the first `ShiftPanel` slice into the Salon dashboard
+- Local `yarn test` completed on 2026-05-25 with 15/15 passing after E1 (offline unification — removed dead `services/db.js`)
+- Local `yarn build` also completed on 2026-05-25 confirming no regressions
 - Build emitted non-blocking warnings from Vite/Sass:
   - `splitVendorChunk` has no effect with the current manual chunk config
   - SweetAlert2 SCSS still uses deprecated Sass `@import`
